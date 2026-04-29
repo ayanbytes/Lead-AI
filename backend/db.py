@@ -10,9 +10,14 @@ class Base(DeclarativeBase):
 
 
 def _get_database_url() -> str:
-  url = os.getenv("DATABASE_URL")
+  # Railway and other providers often use MYSQL_URL or DATABASE_URL
+  url = os.getenv("MYSQL_URL") or os.getenv("DATABASE_URL")
   if url:
+    # If the URL is for mysql://, replace with mysql+pymysql:// for SQLAlchemy
+    if url.startswith("mysql://"):
+      url = url.replace("mysql://", "mysql+pymysql://", 1)
     return url
+  
   host = os.getenv("DB_HOST", "127.0.0.1")
   port = os.getenv("DB_PORT", "3306")
   user = os.getenv("DB_USER", "root")
@@ -28,29 +33,32 @@ def _get_database_url() -> str:
 
 DATABASE_URL = _get_database_url()
 
-# Pre-check/create database if using MySQL
-if DATABASE_URL.startswith("mysql"):
+# Pre-check/create database if using MySQL (only if not on a managed provider like Railway)
+if DATABASE_URL.startswith("mysql") and not os.getenv("RAILWAY_ENVIRONMENT"):
     import pymysql
     from urllib.parse import urlparse, unquote
     
-    parsed = urlparse(DATABASE_URL)
-    db_name = parsed.path.lstrip('/')
-    
-    # Connect without database name
-    # We must unquote the password because it was URL-encoded
-    raw_password = unquote(parsed.password) if parsed.password else None
-    
-    connection = pymysql.connect(
-        host=parsed.hostname,
-        port=parsed.port or 3306,
-        user=parsed.username,
-        password=raw_password,
-    )
     try:
-        with connection.cursor() as cursor:
-            cursor.execute(f"CREATE DATABASE IF NOT EXISTS {db_name}")
-    finally:
-        connection.close()
+        parsed = urlparse(DATABASE_URL)
+        db_name = parsed.path.lstrip('/')
+        
+        # Connect without database name
+        raw_password = unquote(parsed.password) if parsed.password else None
+        
+        connection = pymysql.connect(
+            host=parsed.hostname,
+            port=parsed.port or 3306,
+            user=parsed.username,
+            password=raw_password,
+            connect_timeout=5
+        )
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(f"CREATE DATABASE IF NOT EXISTS {db_name}")
+        finally:
+            connection.close()
+    except Exception as e:
+        print(f"Warning: Could not ensure database exists: {e}")
 
 engine = create_engine(
     DATABASE_URL,
