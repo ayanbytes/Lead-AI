@@ -166,10 +166,10 @@ const SingleAnalysis = ({ updateStats }) => {
                   disabled={loading}
                 />
                 <div>
-                  <span className="text-sm font-medium text-gray-700 group-hover:text-blue-600 transition-colors">
-                    🔍 Find Decision Maker (LinkedIn)
+                  <span className="text-sm font-medium text-gray-800 group-hover:text-blue-600 transition-colors">
+                    🔍 Discover Lead & Email Address
                   </span>
-                  <p className="text-xs text-gray-500">Automatically find CEO/CTO name for personalization</p>
+                  <p className="text-xs text-gray-500">Find CEO/CTO name and contact email for direct outreach</p>
                 </div>
               </label>
               <label className="flex items-center gap-3 cursor-pointer group">

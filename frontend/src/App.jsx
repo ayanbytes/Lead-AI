@@ -5,9 +5,10 @@ import Navbar from './components/Navbar';
 import Hero3D from './components/Hero3D';
 import SingleAnalysis from './components/SingleAnalysis';
 import BulkAnalysis from './components/BulkAnalysis';
+import DomainSearch from './components/DomainSearch';
 import SettingsPanel from './components/SettingsPanel';
 import StatsCard from './components/StatsCard';
-import { BarChart3, Zap, Users, TrendingUp } from 'lucide-react';
+import { BarChart3, Zap, Users, TrendingUp, Sparkles } from 'lucide-react';
 import { useHashRoute, navigate } from './utils/router';
 import { getAuth, clearAuth } from './utils/storage';
 import { fetchRecentAudits } from './services/api';
@@ -74,6 +75,7 @@ function App() {
 
   const tabs = [
     { id: 'single', label: 'Single Analysis', icon: Zap },
+    { id: 'discovery', label: 'Lead Discovery', icon: Sparkles },
     { id: 'bulk', label: 'Bulk Processing', icon: Users },
     { id: 'settings', label: 'Settings', icon: BarChart3 }
   ];
@@ -202,6 +204,7 @@ function App() {
                 transition={{ duration: 0.3 }}
               >
                 {activeTab === 'single' && <SingleAnalysis updateStats={setStats} />}
+                {activeTab === 'discovery' && <DomainSearch updateStats={setStats} />}
                 {activeTab === 'bulk' && <BulkAnalysis updateStats={setStats} />}
                 {activeTab === 'settings' && <SettingsPanel />}
               </motion.div>

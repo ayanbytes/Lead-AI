@@ -1,18 +1,20 @@
 import React, { useState, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useDropzone } from 'react-dropzone';
 import { 
   Upload, FileSpreadsheet, Play, Download, 
-  CheckCircle, XCircle, AlertCircle, FileText 
+  CheckCircle, XCircle, AlertCircle, FileText, Send, Mail, User
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { analyzeBulk, exportCSV } from '../services/api';
+import EmailModal from './EmailModal';
 
 const BulkAnalysis = ({ updateStats }) => {
   const [file, setFile] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [results, setResults] = useState(null);
   const [progress, setProgress] = useState(0);
+  const [selectedEmailData, setSelectedEmailData] = useState(null);
 
   const onDrop = useCallback((acceptedFiles) => {
     if (acceptedFiles.length > 0) {
@@ -41,16 +43,15 @@ const BulkAnalysis = ({ updateStats }) => {
     setProcessing(true);
     setProgress(0);
 
-    // Simulate progress
     const progressInterval = setInterval(() => {
       setProgress(prev => {
-        if (prev >= 90) {
+        if (prev >= 95) {
           clearInterval(progressInterval);
           return prev;
         }
         return prev + 5;
       });
-    }, 1000);
+    }, 1500);
 
     try {
       const data = await analyzeBulk(file);
@@ -62,7 +63,6 @@ const BulkAnalysis = ({ updateStats }) => {
         duration: 5000
       });
       
-      // Update stats
       updateStats(prev => ({
         ...prev,
         companiesProcessed: prev.companiesProcessed + data.successful,
@@ -91,25 +91,32 @@ const BulkAnalysis = ({ updateStats }) => {
     }
   };
 
-  const downloadSampleCSV = () => {
-    const sampleData = `company_name,industry,website
-Shopify,E-commerce SaaS,https://shopify.com
-Stripe,Fintech,https://stripe.com
-Notion,Productivity SaaS,https://notion.so
-Figma,Design Tools,https://figma.com
-Vercel,Developer Tools,https://vercel.com`;
-
-    const blob = new Blob([sampleData], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'sample_companies.csv';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
+  const parseEmail = (emailStr) => {
+    if (!emailStr) return { subject: '', body: '' };
+    const lines = emailStr.split('\n');
+    let subject = '';
+    let bodyStart = 0;
     
-    toast.success('📄 Sample CSV downloaded!');
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].toLowerCase().startsWith('subject:')) {
+        subject = lines[i].substring(8).trim();
+        bodyStart = i + 1;
+        break;
+      }
+    }
+    
+    const body = lines.slice(bodyStart).join('\n').trim();
+    return { subject, body };
+  };
+
+  const handleOpenEmailModal = (result) => {
+    const { subject, body } = parseEmail(result.email);
+    setSelectedEmailData({
+      companyName: result.company_name,
+      recipient: result.lead_email || result.company_email || '',
+      subject: subject,
+      body: body || result.email
+    });
   };
 
   return (
@@ -118,130 +125,105 @@ Vercel,Developer Tools,https://vercel.com`;
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass-card rounded-2xl p-8"
+        className="glass-card rounded-2xl p-8 shadow-xl border border-white/40"
       >
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
+          <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
             <FileSpreadsheet className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-gray-800">Bulk Processing</h2>
-            <p className="text-gray-500">Process hundreds of companies at once</p>
+            <h2 className="text-2xl font-bold text-gray-800">Bulk Analysis & Outreach</h2>
+            <p className="text-gray-500">Discover leads and send automated emails to multiple companies</p>
           </div>
         </div>
 
-        {/* CSV Format Info */}
-        <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-6 mb-6 border border-blue-200">
-          <div className="flex items-center gap-2 mb-3">
-            <AlertCircle className="w-5 h-5 text-blue-600" />
-            <h3 className="font-semibold text-gray-800">Required CSV Format:</h3>
+        <div className="bg-indigo-50/50 rounded-2xl p-6 mb-8 border border-indigo-100">
+          <div className="flex items-center gap-2 mb-4">
+            <AlertCircle className="w-5 h-5 text-indigo-600" />
+            <h3 className="font-bold text-gray-800">Ready for Outreach?</h3>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mb-4">
-            <div className="bg-white rounded-lg p-3">
-              <span className="font-mono bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs">company_name</span>
-              <p className="text-gray-600 mt-2 text-xs">Company name or description (required)</p>
-            </div>
-            <div className="bg-white rounded-lg p-3">
-              <span className="font-mono bg-green-100 text-green-700 px-2 py-1 rounded text-xs">industry</span>
-              <p className="text-gray-600 mt-2 text-xs">Industry category (optional)</p>
-            </div>
-            <div className="bg-white rounded-lg p-3">
-              <span className="font-mono bg-purple-100 text-purple-700 px-2 py-1 rounded text-xs">website</span>
-              <p className="text-gray-600 mt-2 text-xs">Company website URL (optional)</p>
-            </div>
+          <p className="text-sm text-gray-600 mb-4">
+            Ensure your <strong>SMTP Settings</strong> are configured in the Settings tab before processing to enable direct email sending.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+             <div className="bg-white p-3 rounded-xl border border-indigo-100 flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-green-500" />
+                <span className="text-xs font-semibold text-gray-700">Lead Email Discovery</span>
+             </div>
+             <div className="bg-white p-3 rounded-xl border border-indigo-100 flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-green-500" />
+                <span className="text-xs font-semibold text-gray-700">Customized Audits</span>
+             </div>
+             <div className="bg-white p-3 rounded-xl border border-indigo-100 flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-green-500" />
+                <span className="text-xs font-semibold text-gray-700">Direct SMTP Outreach</span>
+             </div>
           </div>
-          <button 
-            onClick={downloadSampleCSV}
-            className="btn-secondary text-sm flex items-center gap-2"
-          >
-            <Download className="w-4 h-4" />
-            Download Sample CSV Template
-          </button>
         </div>
 
-        {/* Dropzone */}
         <div
           {...getRootProps()}
           className={`
-            border-3 border-dashed rounded-2xl p-12 text-center cursor-pointer transition-all
+            border-3 border-dashed rounded-3xl p-12 text-center cursor-pointer transition-all duration-300
             ${isDragActive 
-              ? 'border-blue-500 bg-blue-50 scale-105' 
+              ? 'border-indigo-500 bg-indigo-50 scale-102' 
               : file 
                 ? 'border-green-500 bg-green-50'
-                : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'
+                : 'border-gray-200 hover:border-indigo-400 hover:bg-gray-50'
             }
           `}
         >
           <input {...getInputProps()} />
           
           {file ? (
-            <div className="space-y-3">
-              <CheckCircle className="w-16 h-16 mx-auto text-green-500" />
+            <div className="space-y-4">
+              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto shadow-inner">
+                <CheckCircle className="w-10 h-10 text-green-600" />
+              </div>
               <div>
-                <p className="text-lg font-semibold text-green-700 mb-1">✓ {file.name}</p>
+                <p className="text-xl font-bold text-gray-800">{file.name}</p>
                 <p className="text-sm text-gray-500">
-                  {(file.size / 1024).toFixed(2)} KB • Click to replace
+                  Ready to process {(file.size / 1024).toFixed(1)} KB file
                 </p>
               </div>
             </div>
-          ) : isDragActive ? (
-            <div className="space-y-3">
-              <Upload className="w-16 h-16 mx-auto text-blue-500 animate-bounce" />
-              <p className="text-lg font-semibold text-blue-600">Drop your CSV file here...</p>
-            </div>
           ) : (
-            <div className="space-y-3">
-              <Upload className="w-16 h-16 mx-auto text-gray-400" />
+            <div className="space-y-4">
+              <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto shadow-inner group-hover:bg-indigo-100 transition-colors">
+                <Upload className="w-10 h-10 text-gray-400 group-hover:text-indigo-500" />
+              </div>
               <div>
-                <p className="text-lg font-semibold text-gray-700 mb-2">
-                  Drag & drop your CSV file here
-                </p>
-                <p className="text-sm text-gray-500">
-                  or click to browse • Max file size: 10MB
-                </p>
+                <p className="text-xl font-bold text-gray-700">Drop your leads list here</p>
+                <p className="text-sm text-gray-500">CSV format with company_name required</p>
               </div>
             </div>
           )}
         </div>
 
-        {/* Process Button */}
         {file && (
-          <motion.button
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
+          <button
             onClick={handleProcess}
             disabled={processing}
-            className="btn-primary w-full mt-6 flex items-center justify-center gap-2 text-lg py-4"
+            className={`
+              w-full mt-8 flex items-center justify-center gap-3 text-lg py-5 rounded-2xl font-bold transition-all
+              ${processing 
+                ? 'bg-gray-400 text-white cursor-not-allowed' 
+                : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-xl hover:scale-[1.01] active:scale-[0.99]'
+              }
+            `}
           >
             {processing ? (
               <>
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Processing {progress}%...
+                <div className="w-6 h-6 border-3 border-white border-t-transparent rounded-full animate-spin" />
+                Analyzing Leads ({progress}%)
               </>
             ) : (
               <>
-                <Play className="w-5 h-5" />
-                Process All Companies
+                <Play className="w-6 h-6" />
+                Start Bulk Analysis & Discovery
               </>
             )}
-          </motion.button>
-        )}
-
-        {/* Progress Bar */}
-        {processing && (
-          <div className="mt-4 space-y-2">
-            <div className="bg-gray-200 rounded-full h-3 overflow-hidden">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${progress}%` }}
-                className="h-full bg-gradient-to-r from-blue-600 to-cyan-600"
-                transition={{ duration: 0.5 }}
-              />
-            </div>
-            <p className="text-sm text-gray-600 text-center">
-              Analyzing companies... This may take a few minutes.
-            </p>
-          </div>
+          </button>
         )}
       </motion.div>
 
@@ -250,100 +232,87 @@ Vercel,Developer Tools,https://vercel.com`;
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="glass-card rounded-2xl p-8"
+          className="glass-card rounded-2xl p-8 shadow-2xl border border-white/40"
         >
-          <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 border-b border-gray-100 pb-6">
             <div>
-              <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                <CheckCircle className="w-6 h-6 text-green-600" />
-                Processing Complete!
+              <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
+                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                  <CheckCircle className="w-6 h-6 text-green-600" />
+                </div>
+                Campaign Results
               </h3>
               <p className="text-gray-500 mt-1">
-                {results.successful} successful • {results.failed} failed • {results.total} total
+                Processed {results.total} companies • {results.successful} leads found
               </p>
             </div>
             <div className="flex gap-3">
               <button 
                 onClick={handleDownloadCSV}
-                className="btn-secondary flex items-center gap-2"
+                className="btn-secondary flex items-center gap-2 shadow-sm"
               >
                 <Download className="w-5 h-5" />
-                Download CSV
+                Export CSV
               </button>
-              <button className="btn-primary flex items-center gap-2">
-                <FileText className="w-5 h-5" />
-                Download All PDFs
-              </button>
-            </div>
-          </div>
-
-          {/* Stats Grid */}
-          <div className="grid grid-cols-3 gap-4 mb-6">
-            <div className="bg-green-50 rounded-xl p-4 border border-green-200">
-              <div className="text-3xl font-bold text-green-600">{results.successful}</div>
-              <div className="text-sm text-gray-600">Successful</div>
-            </div>
-            <div className="bg-red-50 rounded-xl p-4 border border-red-200">
-              <div className="text-3xl font-bold text-red-600">{results.failed}</div>
-              <div className="text-sm text-gray-600">Failed</div>
-            </div>
-            <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
-              <div className="text-3xl font-bold text-blue-600">{results.total}</div>
-              <div className="text-sm text-gray-600">Total</div>
             </div>
           </div>
 
           {/* Results Table */}
-          <div className="overflow-x-auto rounded-xl border border-gray-200">
+          <div className="overflow-hidden rounded-2xl border border-gray-100 shadow-sm">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50/80">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    Company
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    Industry
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    Actions
-                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Company</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Lead Found</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Email</th>
+                  <th className="px-6 py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white divide-y divide-gray-50">
                 {results.results && results.results.map((result, index) => (
-                  <tr key={index} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 font-medium text-gray-800">
-                      {result.company_name || 'N/A'}
+                  <tr key={index} className="hover:bg-blue-50/30 transition-colors group">
+                    <td className="px-6 py-5">
+                      <div className="font-bold text-gray-800">{result.company_name}</div>
+                      <div className="text-xs text-gray-500">{result.industry || 'Industry N/A'}</div>
                     </td>
-                    <td className="px-6 py-4 text-gray-600">
-                      {result.industry || 'N/A'}
+                    <td className="px-6 py-5">
+                       {result.decision_maker ? (
+                         <div className="flex items-center gap-2 text-sm font-medium text-purple-700">
+                           <User className="w-4 h-4" />
+                           {result.decision_maker}
+                         </div>
+                       ) : (
+                         <span className="text-gray-400 italic text-sm">Not found</span>
+                       )}
                     </td>
-                    <td className="px-6 py-4">
-                      {result.status === 'Success' ? (
-                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-green-100 text-green-700 text-sm font-medium">
-                          <CheckCircle className="w-4 h-4" />
-                          Success
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-red-100 text-red-700 text-sm font-medium">
-                          <XCircle className="w-4 h-4" />
-                          Failed
-                        </span>
-                      )}
+                    <td className="px-6 py-5">
+                       {result.lead_email || result.company_email ? (
+                         <div className="text-sm font-semibold text-blue-600 flex items-center gap-2">
+                           <Mail className="w-4 h-4" />
+                           {result.lead_email || result.company_email}
+                         </div>
+                       ) : (
+                         <span className="text-gray-400 italic text-sm">No email found</span>
+                       )}
                     </td>
-                    <td className="px-6 py-4">
-                      <button 
-                        onClick={() => {
-                          // Store result in state for detailed view
-                          toast('Feature coming soon!', { icon: '🚀' });
-                        }}
-                        className="text-blue-600 hover:text-blue-800 font-medium text-sm transition-colors"
-                      >
-                        View Details →
-                      </button>
+                    <td className="px-6 py-5 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        {result.status === 'Success' && (
+                          <button 
+                            onClick={() => handleOpenEmailModal(result)}
+                            className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200"
+                            title="Send Direct Email"
+                          >
+                            <Send className="w-4 h-4" />
+                          </button>
+                        )}
+                        <button 
+                          className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                          title="View Details"
+                        >
+                          <FileText className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -352,6 +321,20 @@ Vercel,Developer Tools,https://vercel.com`;
           </div>
         </motion.div>
       )}
+
+      {/* Email Modal */}
+      <AnimatePresence>
+        {selectedEmailData && (
+          <EmailModal 
+            isOpen={!!selectedEmailData}
+            onClose={() => setSelectedEmailData(null)}
+            initialRecipient={selectedEmailData.recipient}
+            initialSubject={selectedEmailData.subject}
+            initialBody={selectedEmailData.body}
+            companyName={selectedEmailData.companyName}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

@@ -9,7 +9,7 @@ load_dotenv()
 class LinkedInAgent:
     def __init__(self):
         self.llm = ChatGroq(
-            model="llama-3.1-70b-versatile",
+            model="llama-3.1-8b-instant",
             temperature=0.1,
             api_key=os.getenv("GROQ_API_KEY")
         )
@@ -52,11 +52,62 @@ Do not include titles, positions, or any other information.
             print(f"LinkedIn search error: {e}")
             return "Decision Maker"
 
+    def find_emails(self, company_name, domain=None, lead_name=None):
+        """
+        Find company and lead emails using search
+        """
+        emails = {
+            "company_email": "info@" + (domain if domain else company_name.lower().replace(" ", "") + ".com"),
+            "lead_email": ""
+        }
+        
+        try:
+            # Search for company emails
+            company_query = f"{company_name} contact email address \"@{(domain if domain else company_name.lower().replace(' ', ''))}\""
+            results = self.search.invoke(company_query)
+            
+            context = "\n".join([r.get('content', '')[:500] for r in results])
+            
+            prompt = f"""
+            Based on the search results, find the most likely official contact email for {company_name}.
+            
+            Results:
+            {context}
+            
+            Return ONLY the email address. If not found, return "info@{(domain if domain else 'company.com')}".
+            """
+            response = self.llm.invoke(prompt)
+            emails["company_email"] = response.content.strip().strip('"\'')
+
+            # Search for lead email
+            if lead_name and lead_name != "Decision Maker":
+                lead_query = f"{lead_name} {company_name} email address"
+                lead_results = self.search.invoke(lead_query)
+                
+                lead_context = "\n".join([r.get('content', '')[:500] for r in lead_results])
+                
+                lead_prompt = f"""
+                Find the email address for {lead_name} at {company_name}.
+                
+                Results:
+                {lead_context}
+                
+                Return ONLY the email address. If not found, return an empty string.
+                """
+                lead_response = self.llm.invoke(lead_prompt)
+                emails["lead_email"] = lead_response.content.strip().strip('"\'')
+                
+            return emails
+            
+        except Exception as e:
+            print(f"Email search error: {e}")
+            return emails
+
 
 class CompetitorAnalyzer:
     def __init__(self):
         self.llm = ChatGroq(
-            model="llama-3.1-70b-versatile",
+            model="llama-3.1-8b-instant",
             temperature=0.2,
             api_key=os.getenv("GROQ_API_KEY")
         )

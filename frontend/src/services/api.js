@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { getAccessToken } from '../utils/storage';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -11,7 +11,7 @@ const api = axios.create({
   timeout: 120000, // 2 minutes for long analyses
 });
 
-// Request interceptor
+// Request interceptor — attach JWT token to every request
 api.interceptors.request.use(
   (config) => {
     const token = getAccessToken();
@@ -37,6 +37,15 @@ api.interceptors.response.use(
   }
 );
 
+export const searchCompanies = async (query) => {
+  try {
+    const response = await api.post('/api/search-companies', { query });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || 'Search failed');
+  }
+};
+
 export const analyzeCompany = async (formData) => {
   try {
     const response = await api.post('/api/analyze', {
@@ -47,7 +56,6 @@ export const analyzeCompany = async (formData) => {
       include_competitors: formData.includeCompetitors || false,
       agency_name: formData.agencyName || null
     });
-    
     return response.data;
   } catch (error) {
     throw new Error(error.response?.data?.detail || 'Analysis failed');
@@ -115,6 +123,15 @@ export const fetchAudits = async ({ page = 1, pageSize = 20 } = {}) => {
   }
 };
 
+export const deleteAudit = async (auditId) => {
+  try {
+    const response = await api.delete(`/api/audits/${auditId}`);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || 'Failed to delete audit');
+  }
+};
+
 export const analyzeBulk = async (file) => {
   const formData = new FormData();
   formData.append('file', file);
@@ -126,7 +143,6 @@ export const analyzeBulk = async (file) => {
       },
       timeout: 300000, // 5 minutes for bulk processing
     });
-    
     return response.data;
   } catch (error) {
     throw new Error(error.response?.data?.detail || 'Bulk analysis failed');
@@ -141,7 +157,7 @@ export const downloadPDF = async (result, agencyName) => {
     }, {
       responseType: 'blob'
     });
-    
+
     const url = window.URL.createObjectURL(new Blob([response.data]));
     const link = document.createElement('a');
     link.href = url;
@@ -163,7 +179,7 @@ export const exportCSV = async (results) => {
     }, {
       responseType: 'blob'
     });
-    
+
     const url = window.URL.createObjectURL(new Blob([response.data]));
     const link = document.createElement('a');
     link.href = url;
@@ -175,6 +191,41 @@ export const exportCSV = async (results) => {
     window.URL.revokeObjectURL(url);
   } catch (error) {
     throw new Error('CSV export failed');
+  }
+};
+
+export const fetchUserSettings = async () => {
+  try {
+    const response = await api.get('/api/user/settings');
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || 'Failed to fetch settings');
+  }
+};
+
+export const updateUserSettings = async (settings) => {
+  try {
+    const response = await api.put('/api/user/settings', settings);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || 'Failed to update settings');
+  }
+};
+
+export const sendEmail = async (emailData) => {
+  try {
+    const response = await api.post('/api/send-email', {
+      to_email: emailData.recipient,
+      subject: emailData.subject,
+      body: emailData.body
+    });
+    return response.data;
+  } catch (error) {
+    let detail = error.response?.data?.detail;
+    if (typeof detail === 'object') {
+      detail = JSON.stringify(detail);
+    }
+    throw new Error(detail || 'Failed to send email');
   }
 };
 

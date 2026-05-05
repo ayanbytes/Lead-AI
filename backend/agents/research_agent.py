@@ -17,7 +17,7 @@ class LeadResearchAgent:
         )
         
         self.search_tool = TavilySearchResults(
-            k=2,
+            k=5,
             api_key=os.getenv("TAVILY_API_KEY")
         )
         
@@ -119,7 +119,7 @@ TONE GUIDELINES:
         return AgentExecutor(agent=agent, tools=self.tools, verbose=False, handle_parsing_errors=True)
     
     def analyze_company(self, company_name, industry="General", agency_name=None, 
-                       include_linkedin=False, include_competitors=False):
+                       include_linkedin=False, include_competitors=False, website=None):
         """
         Analyze a company and generate audit + outreach email
         """
@@ -130,8 +130,13 @@ TONE GUIDELINES:
             # Create agent with agency name
             self.agent_executor = self._create_agent(agency_name)
             
+            # Build search context
+            search_name = company_name
+            if website:
+                search_name += f" (Website: {website})"
+
             result = self.agent_executor.invoke({
-                "company_name": company_name,
+                "company_name": search_name,
                 "industry": industry
             })
             
@@ -140,7 +145,7 @@ TONE GUIDELINES:
             parsed['industry'] = industry
             parsed['status'] = 'Success'
             
-            # LinkedIn integration
+            # LinkedIn integration and email discovery
             if include_linkedin:
                 from .linkedin_agent import LinkedInAgent
                 linkedin_agent = LinkedInAgent()
@@ -153,6 +158,19 @@ TONE GUIDELINES:
                         '[Decision Maker]',
                         decision_maker
                     )
+                
+                # Extract domain from website if provided
+                domain = None
+                if website:
+                    domain = website.replace('https://', '').replace('http://', '').replace('www.', '').split('/')[0]
+
+                # Find emails
+                emails = linkedin_agent.find_emails(
+                    company_name=company_name,
+                    lead_name=decision_maker,
+                    domain=domain
+                )
+                parsed.update(emails)
             
             # Competitive analysis
             if include_competitors:
@@ -175,6 +193,87 @@ TONE GUIDELINES:
                 "email": ""
             }
     
+
+    def _sync_discover_companies(self, query: str):
+        """
+        Synchronous implementation of company discovery — runs safely in a thread pool.
+        """
+        import json
+        import re
+
+        try:
+            # 1. Search for companies using Tavily (sync)
+            try:
+                raw_results = self.search_tool.run(
+                    f"list of companies related to {query} with their official websites"
+                )
+                search_results = str(raw_results)[:4000]
+            except Exception as tavily_err:
+                print(f"Tavily search failed, using LLM fallback: {tavily_err}")
+                search_results = f"Query: {query}"
+
+            # 2. Ask LLM to extract structured company data — NO tool calls, plain text only
+            extract_prompt = f"""You are a data extraction expert. Your ONLY task is to return a JSON list of companies.
+
+IMPORTANT: Do NOT call any tools. Do NOT use brave_search or any search tool. Just return the JSON list directly.
+
+Based on this query: "{query}"
+And these search results: {search_results}
+
+Return ONLY a raw JSON array. No markdown, no code fences, no explanation — just the JSON.
+
+Format:
+[
+  {{"name": "Company Name", "website": "https://example.com", "industry": "Industry Type", "description": "One sentence about what they do."}}
+]
+
+Rules:
+- Include 5-10 real companies relevant to the query.
+- If website is unknown, use "N/A".
+- Return ONLY the JSON array, nothing else.
+"""
+            # Use plain string input to avoid tool-calling mode
+            from langchain_core.messages import HumanMessage
+            response = self.llm.invoke([HumanMessage(content=extract_prompt)])
+            content = response.content
+
+            # 3. Parse the JSON response
+            clean_content = content.strip()
+
+            # Strip markdown code fences if present
+            for fence in ["```json", "```"]:
+                if clean_content.startswith(fence):
+                    clean_content = clean_content[len(fence):]
+            if clean_content.endswith("```"):
+                clean_content = clean_content[:-3]
+            clean_content = clean_content.strip()
+
+            # Try to extract just the JSON list if there's preamble
+            if not clean_content.startswith("["):
+                match = re.search(r"\[\s*\{.*\}\s*\]", clean_content, re.DOTALL)
+                if match:
+                    clean_content = match.group(0)
+
+            # Attempt to close truncated JSON
+            if not clean_content.endswith("]"):
+                if "}" in clean_content:
+                    last_brace = clean_content.rfind("}")
+                    clean_content = clean_content[:last_brace + 1] + "]"
+
+            companies = json.loads(clean_content)
+            result = [c for c in companies if c.get("name")]
+            print(f"DEBUG: Discovered {len(result)} companies for query: {query}")
+            return result
+
+        except Exception as e:
+            try:
+                print(f"Discovery error: {str(e).encode('ascii', 'ignore').decode('ascii')}")
+            except Exception:
+                print("Discovery error: [encoding error]")
+            return []
+
+
+
     def _parse_output(self, output):
         """
         Parse the agent output into structured sections

@@ -7,12 +7,16 @@ import os
 import pandas as pd
 import time
 from datetime import datetime
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 from dotenv import load_dotenv
 
 # Load environment variables from backend/.env for local development
 load_dotenv()
 
+import asyncio
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import OperationalError
 from jose import JWTError, jwt
@@ -80,6 +84,21 @@ class AuthResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: dict
+
+
+class ProfileSettingsRequest(BaseModel):
+    full_name: Optional[str] = None
+    email: Optional[str] = None
+    agency_name: Optional[str] = None
+
+
+class SendEmailRequest(BaseModel):
+    to_email: str
+    subject: str
+    body: str
+
+class SearchRequest(BaseModel):
+    query: str
 
 
 def _get_jwt_secret() -> str:
@@ -303,6 +322,26 @@ def get_audit(
         "result": row.result_json,
     }
 
+
+@app.delete("/api/audits/{audit_id}")
+def delete_audit(
+    audit_id: int,
+    current_user: User = Depends(get_current_user_from_header),
+    db: Session = Depends(get_db),
+):
+    """
+    Delete a specific audit record
+    """
+    row = db.query(Audit).filter(Audit.id == int(audit_id), Audit.user_id == current_user.id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Audit not found")
+    
+    db.delete(row)
+    db.commit()
+    return {"message": "Audit deleted successfully"}
+
+
+
 # Single Analysis Endpoint
 @app.post("/api/analyze")
 async def analyze_company(
@@ -314,21 +353,21 @@ async def analyze_company(
     Analyze a single company and generate technical audit + outreach email
     """
     try:
-        # Build company context
-        company_context = request.company_name
-        if request.website:
-            company_context += f" (Website: {request.website})"
-        
-        # Get agency name
-        agency_name = request.agency_name or os.getenv("AGENCY_NAME", "Your IT Agency")
-        
+        # Determine agency name: Request > User Profile > Env Var
+        agency_name = request.agency_name
+        if not agency_name and current_user:
+            agency_name = current_user.agency_name
+        if not agency_name:
+            agency_name = os.getenv("AGENCY_NAME", "Your IT Agency")
+
         # Run analysis
         result = agent.analyze_company(
-            company_name=company_context,
+            company_name=request.company_name,
             industry=request.industry,
             agency_name=agency_name,
             include_linkedin=request.include_linkedin,
-            include_competitors=request.include_competitors
+            include_competitors=request.include_competitors,
+            website=request.website
         )
 
         # Persist audit only for authenticated users
@@ -393,17 +432,19 @@ async def analyze_bulk(
         if 'website' not in df.columns:
             df['website'] = ''
         
+        # Determine agency name for bulk
+        agency_name = current_user.agency_name if current_user else os.getenv("AGENCY_NAME", "Your IT Agency")
+
         # Process each company
         results = []
         for idx, row in df.iterrows():
             try:
-                company_context = str(row['company_name'])
-                if pd.notna(row.get('website')) and row.get('website'):
-                    company_context += f" (Website: {row['website']})"
-                
                 result = agent.analyze_company(
-                    company_name=company_context,
-                    industry=str(row.get('industry', 'General'))
+                    company_name=str(row['company_name']),
+                    industry=str(row.get('industry', 'General')),
+                    website=str(row.get('website')) if pd.notna(row.get('website')) and row.get('website') else None,
+                    include_linkedin=True, # Enable lead discovery for bulk by default if possible
+                    agency_name=agency_name
                 )
                 
                 results.append(result)
@@ -586,12 +627,120 @@ async def export_csv(request: dict):
             detail=f"CSV export failed: {str(e)}"
         )
 
+# User Settings Endpoints
+@app.get("/api/user/settings")
+def get_user_settings(current_user: User = Depends(get_current_user_from_header)):
+    return {
+        "full_name": current_user.full_name,
+        "email": current_user.email,
+        "agency_name": current_user.agency_name or os.getenv("AGENCY_NAME", "Your IT Agency")
+    }
+
+@app.put("/api/user/settings")
+def update_user_settings(
+    request: ProfileSettingsRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_from_header)
+):
+    if request.full_name is not None:
+        current_user.full_name = request.full_name
+    if request.email is not None:
+        # Check if email is already taken by another user
+        if request.email != current_user.email:
+            existing = db.query(User).filter(User.email == request.email).first()
+            if existing:
+                raise HTTPException(status_code=400, detail="Email already registered")
+        current_user.email = request.email
+    if request.agency_name is not None:
+        current_user.agency_name = request.agency_name
+    
+    db.commit()
+    return {"message": "Profile updated successfully"}
+
+@app.post("/api/search-companies")
+def search_companies_endpoint(request: SearchRequest):
+    """Discover companies based on a query. Public endpoint — no auth required."""
+    try:
+        print(f"DEBUG: Starting search for query: {request.query}")
+        tavily_key = os.getenv("TAVILY_API_KEY")
+        groq_key = os.getenv("GROQ_API_KEY")
+
+        if not tavily_key or not groq_key:
+            raise HTTPException(status_code=500, detail="Missing API keys in server environment")
+
+        agent = LeadResearchAgent()
+        print("DEBUG: Agent initialized")
+
+        companies = agent._sync_discover_companies(request.query)
+        print(f"DEBUG: Found {len(companies)} companies")
+
+        return {"companies": companies}
+
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        import traceback
+        err_msg = str(e)
+        try:
+            print(f"CRITICAL Search error: {err_msg.encode('ascii', 'ignore').decode('ascii')}")
+            print(traceback.format_exc().encode('ascii', 'ignore').decode('ascii'))
+        except Exception:
+            print("CRITICAL Search error: [encoding error]")
+
+        user_error = err_msg
+        if "rate_limit_exceeded" in err_msg.lower():
+            user_error = "Groq API rate limit exceeded. Please try again in a few seconds."
+        elif "authentication" in err_msg.lower():
+            user_error = "API Key authentication failed. Please check your .env file."
+
+        raise HTTPException(status_code=500, detail=f"Search failed: {user_error}")
+
+
+# Send Email Endpoint
+@app.post("/api/send-email")
+async def send_outreach_email(
+    request: SendEmailRequest,
+    current_user: User = Depends(get_optional_user_from_header)
+):
+    # Use global SMTP settings
+    smtp_server = os.getenv("SMTP_SERVER")
+    smtp_port = int(os.getenv("SMTP_PORT", 587))
+    smtp_username = os.getenv("SMTP_USERNAME")
+    smtp_password = os.getenv("SMTP_PASSWORD")
+
+    if not smtp_server or not smtp_username or not smtp_password:
+        raise HTTPException(status_code=500, detail="System SMTP not configured")
+
+    try:
+        msg = MIMEMultipart()
+        # Use logged-in user info if available, otherwise fall back to SMTP account
+        sender_name = current_user.full_name if current_user else "Lead Magnet"
+        reply_to = current_user.email if current_user else smtp_username
+
+        msg['From'] = f"{sender_name} <{smtp_username}>"
+        msg['To'] = request.to_email
+        msg['Subject'] = request.subject
+        msg['Reply-To'] = reply_to
+
+        msg.attach(MIMEText(request.body, 'plain'))
+
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()
+        server.login(smtp_username, smtp_password)
+        server.send_message(msg)
+        server.quit()
+
+        return {"message": f"Email sent successfully to {request.to_email}"}
+    except Exception as e:
+        print(f"Email sending error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
         port=8001,
-        reload=True,
+        reload=False,
         log_level="info"
     )

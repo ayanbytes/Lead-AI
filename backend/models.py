@@ -14,6 +14,14 @@ class User(Base):
   full_name: Mapped[str] = mapped_column(String(255), nullable=False)
   password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
   is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+  agency_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+  
+  # SMTP Settings for outreach
+  smtp_server: Mapped[str | None] = mapped_column(String(255), nullable=True)
+  smtp_port: Mapped[int | None] = mapped_column(nullable=True)
+  smtp_username: Mapped[str | None] = mapped_column(String(255), nullable=True)
+  smtp_password: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
   created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
   updated_at: Mapped[datetime] = mapped_column(
     DateTime,
