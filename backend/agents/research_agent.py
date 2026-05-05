@@ -2,9 +2,9 @@ import os
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from langchain_community.tools.tavily_search import TavilySearchResults
-from langchain.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.tools import StructuredTool
 from langchain.agents import AgentExecutor, create_tool_calling_agent
-from langchain.tools import StructuredTool
 
 load_dotenv()
 
