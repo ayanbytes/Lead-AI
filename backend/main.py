@@ -33,22 +33,18 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS Configuration - Permissive for troubleshooting
+# CORS Configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False, # Must be False if origins is ["*"]
+    allow_origins=[
+        "*",
+        "https://lead-gj5mraixo-ayanbytes-projects.vercel.app",
+        "https://leadais.netlify.app"
+    ],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-@app.middleware("http")
-async def log_requests(request, call_next):
-    origin = request.headers.get("origin")
-    if origin:
-        print(f"DEBUG: Incoming request {request.method} {request.url.path} from origin: {origin}")
-    response = await call_next(request)
-    return response
 
 # Initialize agent
 agent = LeadResearchAgent()
