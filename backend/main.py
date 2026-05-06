@@ -409,11 +409,12 @@ async def analyze_bulk(
         if not file.filename.endswith('.csv'):
             raise HTTPException(status_code=400, detail="Only CSV files are allowed")
         
-        # Save uploaded file temporarily
-        temp_filename = f"temp_{int(time.time())}_{file.filename}"
-        with open(temp_filename, "wb") as buffer:
+        # Save uploaded file to a temporary file
+        import tempfile
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as tmp:
             content = await file.read()
-            buffer.write(content)
+            tmp.write(content)
+            temp_filename = tmp.name
         
         # Read CSV
         df = pd.read_csv(temp_filename)
@@ -544,15 +545,20 @@ async def download_pdf(request: dict):
         company_name = result.get('company_name', 'company')
         agency_name = request.get('agency_name', os.getenv('AGENCY_NAME', 'Your IT Agency'))
         
-        # Generate PDF
+        # Generate PDF in temp directory
+        import tempfile
+        from pathlib import Path
+        
         safe_filename = "".join(c for c in company_name if c.isalnum() or c in (' ', '-', '_')).rstrip()
         pdf_filename = f"{safe_filename}_audit_{int(time.time())}.pdf"
         
-        pdf_path = generate_pdf_report(
-            result=result,
-            agency_name=agency_name,
-            output_filename=pdf_filename
-        )
+        # Create a temporary file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+            pdf_path = generate_pdf_report(
+                result=result,
+                agency_name=agency_name,
+                output_filename=tmp.name
+            )
         
         if not pdf_path or not os.path.exists(pdf_path):
             raise HTTPException(status_code=500, detail="PDF generation failed")
@@ -561,9 +567,7 @@ async def download_pdf(request: dict):
             pdf_path,
             media_type='application/pdf',
             filename=pdf_filename,
-            headers={
-                "Content-Disposition": f"attachment; filename={pdf_filename}"
-            }
+            background=None # FileResponse will handle the cleanup if we wrap it or just leave it for now
         )
         
     except Exception as e:
@@ -606,18 +610,20 @@ async def export_csv(request: dict):
                 'Business Value': result.get('business_value', '')
             })
         
-        # Create DataFrame and save to CSV
+        # Create CSV in temp directory
+        import tempfile
+        
         df = pd.DataFrame(export_data)
         csv_filename = f"lead_magnet_results_{int(time.time())}.csv"
-        df.to_csv(csv_filename, index=False)
+        
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as tmp:
+            df.to_csv(tmp.name, index=False)
+            csv_path = tmp.name
         
         return FileResponse(
-            csv_filename,
+            csv_path,
             media_type='text/csv',
-            filename=csv_filename,
-            headers={
-                "Content-Disposition": f"attachment; filename={csv_filename}"
-            }
+            filename=csv_filename
         )
         
     except Exception as e:
