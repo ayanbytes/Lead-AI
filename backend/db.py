@@ -10,7 +10,7 @@ class Base(DeclarativeBase):
 
 
 def _get_database_url() -> str:
-  # Railway and other providers often use MYSQL_URL or DATABASE_URL
+  # Render, Railway and other providers often use MYSQL_URL or DATABASE_URL
   url = os.getenv("MYSQL_URL") or os.getenv("DATABASE_URL")
   if url:
     # If the URL is for mysql://, replace with mysql+pymysql:// for SQLAlchemy
@@ -18,17 +18,22 @@ def _get_database_url() -> str:
       url = url.replace("mysql://", "mysql+pymysql://", 1)
     return url
   
-  host = os.getenv("DB_HOST", "127.0.0.1")
-  port = os.getenv("DB_PORT", "3306")
-  user = os.getenv("DB_USER", "root")
-  password = os.getenv("DB_PASSWORD", "Ayaan@2002")
-  name = os.getenv("DB_NAME", "leadAI")
-  safe_user = quote_plus(user)
-  safe_password = quote_plus(password)
-  safe_host = host.strip()
-  safe_port = str(port).strip()
-  safe_name = name.strip()
-  return f"mysql+pymysql://{safe_user}:{safe_password}@{safe_host}:{safe_port}/{safe_name}"
+  # Check if we have MySQL credentials
+  host = os.getenv("DB_HOST")
+  if host:
+    port = os.getenv("DB_PORT", "3306")
+    user = os.getenv("DB_USER", "root")
+    password = os.getenv("DB_PASSWORD", "Ayaan@2002")
+    name = os.getenv("DB_NAME", "leadAI")
+    safe_user = quote_plus(user)
+    safe_password = quote_plus(password)
+    safe_host = host.strip()
+    safe_port = str(port).strip()
+    safe_name = name.strip()
+    return f"mysql+pymysql://{safe_user}:{safe_password}@{safe_host}:{safe_port}/{safe_name}"
+  
+  # Fallback to SQLite if no MySQL config is provided (good for Render/Testing)
+  return "sqlite:///./backend.db"
 
 
 DATABASE_URL = _get_database_url()
