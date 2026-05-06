@@ -36,13 +36,25 @@ app = FastAPI(
 # CORS Configuration
 allowed_origins_raw = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173")
 allowed_origins = [origin.strip() for origin in allowed_origins_raw.split(",") if origin.strip()]
+
+# If '*' is in allowed_origins, we must disable allow_credentials=True
+is_allow_all = "*" in allowed_origins
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
-    allow_credentials=True,
+    allow_credentials=not is_allow_all,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def log_requests(request, call_next):
+    origin = request.headers.get("origin")
+    if origin:
+        print(f"DEBUG: Incoming request {request.method} from origin: {origin}")
+    response = await call_next(request)
+    return response
 
 # Initialize agent
 agent = LeadResearchAgent()
