@@ -1,6 +1,7 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
+from starlette.responses import Response
 from pydantic import BaseModel
 from typing import Optional, List
 import os
@@ -59,8 +60,20 @@ async def cors_middleware(request, call_next):
         response.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type, Accept, Origin, X-Requested-With"
     return response
 
-# Initialize agent
-agent = LeadResearchAgent()
+_agent: LeadResearchAgent | None = None
+
+
+def get_agent() -> LeadResearchAgent:
+    """
+    Lazily initialize the LLM-backed research agent.
+
+    This prevents the API from failing to boot (breaking auth/audits) when
+    optional environment variables like GROQ_API_KEY/TAVILY_API_KEY are missing.
+    """
+    global _agent
+    if _agent is None:
+        _agent = LeadResearchAgent()
+    return _agent
 
 
 @app.on_event("startup")
@@ -377,7 +390,7 @@ async def analyze_company(
             agency_name = os.getenv("AGENCY_NAME", "Your IT Agency")
 
         # Run analysis
-        result = agent.analyze_company(
+        result = get_agent().analyze_company(
             company_name=request.company_name,
             industry=request.industry,
             agency_name=agency_name,
@@ -456,7 +469,7 @@ async def analyze_bulk(
         results = []
         for idx, row in df.iterrows():
             try:
-                result = agent.analyze_company(
+                result = get_agent().analyze_company(
                     company_name=str(row['company_name']),
                     industry=str(row.get('industry', 'General')),
                     website=str(row.get('website')) if pd.notna(row.get('website')) and row.get('website') else None,
@@ -690,7 +703,7 @@ def search_companies_endpoint(request: SearchRequest):
         if not tavily_key or not groq_key:
             raise HTTPException(status_code=500, detail="Missing API keys in server environment")
 
-        agent = LeadResearchAgent()
+        agent = get_agent()
         print("DEBUG: Agent initialized")
 
         companies = agent._sync_discover_companies(request.query)
