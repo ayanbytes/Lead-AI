@@ -53,10 +53,28 @@ def _normalize_database_url(url: str) -> str:
     parts = urlsplit(raw)
     safe_user = quote_plus(parts.username or "")
     safe_password = quote_plus(parts.password or "")
-    hostname = parts.hostname or ""
-    port = f":{parts.port}" if parts.port else ""
 
-    netloc = hostname + port
+    # Avoid using parts.port because it casts to int and will raise if the port
+    # is a placeholder like ":PORT" (common in some deploy configs).
+    netloc_no_auth = (parts.netloc or "").rsplit("@", 1)[-1]
+    host = netloc_no_auth
+    port_text = ""
+
+    if netloc_no_auth.startswith("["):
+      # IPv6 literal, e.g. "[::1]:5432"
+      end = netloc_no_auth.find("]")
+      if end != -1:
+        host = netloc_no_auth[: end + 1]
+        rest = netloc_no_auth[end + 1 :]
+        if rest.startswith(":"):
+          port_text = rest[1:]
+    else:
+      if ":" in netloc_no_auth:
+        host, port_text = netloc_no_auth.rsplit(":", 1)
+
+    port = f":{port_text}" if port_text else ""
+
+    netloc = host + port
     if safe_user or safe_password:
       netloc = f"{safe_user}:{safe_password}@{netloc}"
 
