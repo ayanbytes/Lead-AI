@@ -50,39 +50,47 @@ def _normalize_database_url(url: str) -> str:
       safe_password = quote_plus(password)
       raw = f"{postgres_prefix}{safe_user}:{safe_password}@{host_and_path}"
 
+    # Use urlsplit to get the basic parts
     parts = urlsplit(raw)
-    safe_user = quote_plus(parts.username or "")
-    safe_password = quote_plus(parts.password or "")
+    
+    # Manually parse netloc to avoid parts.port casting error
+    netloc = parts.netloc or ""
+    auth = ""
+    host_port = netloc
 
-    # Avoid using parts.port because it casts to int and will raise if the port
-    # is a placeholder like ":PORT" (common in some deploy configs).
-    netloc_no_auth = (parts.netloc or "").rsplit("@", 1)[-1]
-    host = netloc_no_auth
-    port_text = ""
+    if "@" in netloc:
+        auth, host_port = netloc.rsplit("@", 1)
+        auth = auth + "@"
 
-    if netloc_no_auth.startswith("["):
-      # IPv6 literal, e.g. "[::1]:5432"
-      end = netloc_no_auth.find("]")
-      if end != -1:
-        host = netloc_no_auth[: end + 1]
-        rest = netloc_no_auth[end + 1 :]
-        if rest.startswith(":"):
-          port_text = rest[1:]
+    # Now handle host and port manually
+    if host_port.startswith("["):
+        # IPv6
+        end = host_port.find("]")
+        host = host_port[:end+1]
+        port_part = host_port[end+1:]
     else:
-      if ":" in netloc_no_auth:
-        host, port_text = netloc_no_auth.rsplit(":", 1)
+        if ":" in host_port:
+            host, port_part = host_port.rsplit(":", 1)
+        else:
+            host = host_port
+            port_part = ""
+    
+    # Ensure the scheme is correct
+    scheme = parts.scheme
+    if scheme == "postgresql":
+        scheme = "postgresql+psycopg2"
+    elif not scheme.startswith("postgresql+"):
+        # Default to psycopg2 for any other postgres scheme
+        if "postgres" in scheme:
+            scheme = "postgresql+psycopg2"
 
-    port = f":{port_text}" if port_text else ""
-
-    netloc = host + port
-    if safe_user or safe_password:
-      netloc = f"{safe_user}:{safe_password}@{netloc}"
-
-    raw = urlunsplit((parts.scheme, netloc, parts.path, parts.query, parts.fragment))
-
-    # SQLAlchemy 2.x prefers explicit driver for psycopg2; enforce it.
-    if raw.startswith("postgresql://"):
-      raw = raw.replace("postgresql://", "postgresql+psycopg2://", 1)
+    # Reconstruct the URL without using parts.port
+    # We keep the port_part exactly as it was (e.g. ":5432" or ":PORT")
+    raw = f"{scheme}://{auth}{host}{port_part}{parts.path}"
+    if parts.query:
+        raw += f"?{parts.query}"
+    if parts.fragment:
+        raw += f"#{parts.fragment}"
 
   return raw
 
@@ -128,9 +136,18 @@ if DATABASE_URL.startswith("mysql") and not os.getenv("RAILWAY_ENVIRONMENT"):
         # Connect without database name
         raw_password = unquote(parsed.password) if parsed.password else None
         
+        # Safe port parsing for MySQL too
+        port_val = 3306
+        if parsed.netloc and ":" in parsed.netloc:
+            try:
+                port_str = parsed.netloc.rsplit(":", 1)[1]
+                port_val = int(port_str)
+            except (ValueError, IndexError):
+                pass
+
         connection = pymysql.connect(
             host=parsed.hostname,
-            port=parsed.port or 3306,
+            port=port_val,
             user=parsed.username,
             password=raw_password,
             connect_timeout=5
