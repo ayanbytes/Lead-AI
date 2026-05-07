@@ -29,11 +29,17 @@ def _normalize_database_url(url: str) -> str:
   if raw.startswith("postgres://"):
     raw = raw.replace("postgres://", "postgresql://", 1)
 
-  if raw.startswith("postgresql://"):
+  postgres_prefixes = (
+    "postgresql://",
+    "postgresql+psycopg2://",
+    "postgresql+psycopg://",
+  )
+
+  postgres_prefix = next((p for p in postgres_prefixes if raw.startswith(p)), None)
+  if postgres_prefix:
     # If credentials contain an unescaped '@', urlsplit mis-parses the host.
     # Fix by splitting at the LAST '@' which is the host separator.
-    scheme_sep = "postgresql://"
-    rest = raw[len(scheme_sep):]
+    rest = raw[len(postgres_prefix):]
     if rest.count("@") > 1:
       creds, host_and_path = rest.rsplit("@", 1)
       if ":" in creds:
@@ -42,21 +48,21 @@ def _normalize_database_url(url: str) -> str:
         user, password = creds, ""
       safe_user = quote_plus(user)
       safe_password = quote_plus(password)
-      raw = f"{scheme_sep}{safe_user}:{safe_password}@{host_and_path}"
+      raw = f"{postgres_prefix}{safe_user}:{safe_password}@{host_and_path}"
 
     parts = urlsplit(raw)
     safe_user = quote_plus(parts.username or "")
     safe_password = quote_plus(parts.password or "")
     hostname = parts.hostname or ""
     port = f":{parts.port}" if parts.port else ""
-    # Keep path/query/fragment as-is
+
     netloc = hostname + port
     if safe_user or safe_password:
       netloc = f"{safe_user}:{safe_password}@{netloc}"
 
     raw = urlunsplit((parts.scheme, netloc, parts.path, parts.query, parts.fragment))
 
-    # SQLAlchemy 2.x prefers explicit driver for psycopg2
+    # SQLAlchemy 2.x prefers explicit driver for psycopg2; enforce it.
     if raw.startswith("postgresql://"):
       raw = raw.replace("postgresql://", "postgresql+psycopg2://", 1)
 
