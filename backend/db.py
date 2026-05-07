@@ -1,5 +1,6 @@
 import os
 from urllib.parse import quote_plus
+from urllib.parse import urlsplit, urlunsplit
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
@@ -9,6 +10,59 @@ class Base(DeclarativeBase):
   pass
 
 
+def _normalize_database_url(url: str) -> str:
+  """
+  Normalize provider DATABASE_URL values so SQLAlchemy can reliably connect.
+
+  In particular, ensure:
+  - postgres schemes use the psycopg2 driver
+  - username/password are URL-encoded (handles special chars like '@')
+
+  Render/Supabase URLs are commonly in the form:
+    postgresql://user:password@host:port/dbname
+  If password contains '@' and is not encoded, the host will be parsed incorrectly.
+  """
+  raw = (url or "").strip()
+  if not raw:
+    return raw
+
+  if raw.startswith("postgres://"):
+    raw = raw.replace("postgres://", "postgresql://", 1)
+
+  if raw.startswith("postgresql://"):
+    # If credentials contain an unescaped '@', urlsplit mis-parses the host.
+    # Fix by splitting at the LAST '@' which is the host separator.
+    scheme_sep = "postgresql://"
+    rest = raw[len(scheme_sep):]
+    if rest.count("@") > 1:
+      creds, host_and_path = rest.rsplit("@", 1)
+      if ":" in creds:
+        user, password = creds.split(":", 1)
+      else:
+        user, password = creds, ""
+      safe_user = quote_plus(user)
+      safe_password = quote_plus(password)
+      raw = f"{scheme_sep}{safe_user}:{safe_password}@{host_and_path}"
+
+    parts = urlsplit(raw)
+    safe_user = quote_plus(parts.username or "")
+    safe_password = quote_plus(parts.password or "")
+    hostname = parts.hostname or ""
+    port = f":{parts.port}" if parts.port else ""
+    # Keep path/query/fragment as-is
+    netloc = hostname + port
+    if safe_user or safe_password:
+      netloc = f"{safe_user}:{safe_password}@{netloc}"
+
+    raw = urlunsplit((parts.scheme, netloc, parts.path, parts.query, parts.fragment))
+
+    # SQLAlchemy 2.x prefers explicit driver for psycopg2
+    if raw.startswith("postgresql://"):
+      raw = raw.replace("postgresql://", "postgresql+psycopg2://", 1)
+
+  return raw
+
+
 def _get_database_url() -> str:
   # Render, Railway and other providers often use MYSQL_URL or DATABASE_URL
   url = os.getenv("MYSQL_URL") or os.getenv("DATABASE_URL")
@@ -16,7 +70,7 @@ def _get_database_url() -> str:
     # If the URL is for mysql://, replace with mysql+pymysql:// for SQLAlchemy
     if url.startswith("mysql://"):
       url = url.replace("mysql://", "mysql+pymysql://", 1)
-    return url
+    return _normalize_database_url(url)
   
   # Check if we have MySQL credentials
   host = os.getenv("DB_HOST")
