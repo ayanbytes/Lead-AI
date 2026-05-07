@@ -130,6 +130,19 @@ engine = create_engine(
     pool_pre_ping=True,
 )
 
+# Basic startup diagnostics for deployed environments (safe; no password logging).
+try:
+    _url_for_log = engine.url
+    _host = getattr(_url_for_log, "host", None) or getattr(_url_for_log, "hostname", None)
+    _user = getattr(_url_for_log, "username", None)
+    if _host:
+        if "@" in str(_host):
+            print(f"ERROR: Parsed DB host contains '@' (likely unescaped password). host={_host}")
+        else:
+            print(f"DB configured. dialect={_url_for_log.drivername} host={_host} user={_user}")
+except Exception as _e:
+    print(f"DB config log skipped: {_e}")
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
