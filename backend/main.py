@@ -18,6 +18,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import asyncio
+# RENDER_SYNC_V2: 2026-05-11
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
