@@ -18,7 +18,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import asyncio
-from sqlalchemy import Session, text
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+
 from sqlalchemy.exc import OperationalError
 from jose import JWTError, jwt
 
@@ -242,8 +244,6 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Valid email is required")
     if not password or len(password) < 8:
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
-    if len(password.encode("utf-8")) > 72:
-        raise HTTPException(status_code=400, detail="Password must be at most 72 bytes (bcrypt limit)")
 
     existing = db.query(User).filter(User.email == email).first()
     if existing:
@@ -282,8 +282,6 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
 
     if not email or not password:
         raise HTTPException(status_code=400, detail="Email and password are required")
-    if len(password.encode("utf-8")) > 72:
-        raise HTTPException(status_code=400, detail="Password must be at most 72 bytes (bcrypt limit)")
 
     user = db.query(User).filter(User.email == email).first()
     if not user or not user.is_active:
