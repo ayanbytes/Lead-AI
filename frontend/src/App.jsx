@@ -101,7 +101,7 @@ function App() {
           <Hero3D />
 
           {/* Stats Cards */}
-          <div className="container mx-auto px-6 mt-8 relative z-10">
+          <div className="container mx-auto px-4 sm:px-6 mt-8 relative z-10">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
               <StatsCard 
                 icon={Zap} 
@@ -131,7 +131,7 @@ function App() {
           </div>
 
           {isLoggedIn ? (
-            <div className="container mx-auto px-6 pb-6">
+            <div className="container mx-auto px-4 sm:px-6 pb-6">
               <div className="glass-card rounded-2xl p-6 border border-white/40 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
                   <div className="text-sm font-semibold text-gray-500">Your recent audits</div>
@@ -145,7 +145,7 @@ function App() {
                   )}
                 </div>
                 <div className="flex gap-3">
-                  <button className="btn-secondary py-3 px-6 rounded-xl" onClick={() => navigate('/app')}>
+                  <button className="btn-secondary py-3 px-6 rounded-xl w-full sm:w-auto" onClick={() => navigate('/app')}>
                     Open dashboard
                   </button>
                 </div>
@@ -171,16 +171,16 @@ function App() {
           ) : null}
 
           {/* Main Content */}
-          <div className="container mx-auto px-6 pb-20">
+          <div className="container mx-auto px-4 sm:px-6 pb-20">
             {/* Tab Navigation */}
-            <div className="flex justify-center mb-8">
-              <div className="glass-card rounded-2xl p-2 inline-flex gap-2">
+            <div className="flex justify-center mb-8 px-1">
+              <div className="glass-card rounded-2xl p-2 flex flex-wrap justify-center gap-2 w-full sm:w-auto">
                 {tabs.map((tab) => (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
                     className={`
-                      flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all duration-300
+                      flex items-center gap-2 px-4 sm:px-6 py-3 rounded-xl font-semibold transition-all duration-300 text-sm sm:text-base
                       ${activeTab === tab.id 
                         ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg' 
                         : 'text-gray-600 hover:bg-gray-100'
@@ -188,7 +188,7 @@ function App() {
                     `}
                   >
                     <tab.icon className="w-5 h-5" />
-                    {tab.label}
+                    <span className="hidden sm:inline">{tab.label}</span>
                   </button>
                 ))}
               </div>
@@ -225,13 +225,13 @@ function App() {
       {route === '/audits' && <AuditHistory />}
 
       {route === '/app' && (!getAuth()?.accessToken ? (
-        <div className="container mx-auto px-6 py-10">
+        <div className="container mx-auto px-4 sm:px-6 py-10">
           <div className="max-w-4xl mx-auto glass-card rounded-2xl p-6 flex items-center justify-between">
             <div>
               <div className="text-xl font-bold text-gray-900">Dashboard</div>
               <div className="text-gray-600 text-sm">Please log in to continue.</div>
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <button className="btn-secondary" onClick={() => navigate('/')}>
                 Home
               </button>
@@ -247,10 +247,10 @@ function App() {
 
       {/* Footer */}
       <footer className="bg-gradient-to-r from-blue-900 to-cyan-900 text-white py-12 mt-20">
-        <div className="container mx-auto px-6 text-center">
+        <div className="container mx-auto px-4 sm:px-6 text-center">
           {/* <p className="text-lg mb-2">Built with LangChain + Groq + React</p> */}
           <p className="text-blue-200">Transform cold outreach into value-driven conversations</p>
-          <div className="mt-6 flex justify-center gap-6">
+          <div className="mt-6 flex flex-wrap justify-center gap-x-6 gap-y-2">
             <a href="#" className="hover:text-cyan-300 transition-colors">Privacy Policy</a>
             <a href="#" className="hover:text-cyan-300 transition-colors">Terms of Service</a>
             <a href="#" className="hover:text-cyan-300 transition-colors">Contact</a>

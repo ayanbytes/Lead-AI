@@ -37,17 +37,17 @@ function AnimatedSphere() {
 const Hero3D = () => {
   const isLoggedIn = Boolean(getAuth()?.accessToken);
   return (
-    <div className="relative h-[600px] overflow-hidden">
+    <div className="relative h-[720px] sm:h-[650px] lg:h-[600px] overflow-hidden">
       {/* Gradient Background */}
       <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-cyan-50 to-blue-100" />
       
       {/* Animated Blobs */}
-      <div className="absolute top-20 left-10 w-72 h-72 bg-blue-300 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-float" />
-      <div className="absolute top-40 right-10 w-72 h-72 bg-cyan-300 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-float" style={{ animationDelay: '2s' }} />
-      <div className="absolute -bottom-8 left-1/3 w-72 h-72 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-float" style={{ animationDelay: '4s' }} />
+      <div className="absolute top-20 left-4 sm:left-10 w-64 sm:w-72 h-64 sm:h-72 bg-blue-300 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-float" />
+      <div className="absolute top-40 right-4 sm:right-10 w-64 sm:w-72 h-64 sm:h-72 bg-cyan-300 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-float" style={{ animationDelay: '2s' }} />
+      <div className="absolute -bottom-8 left-1/3 w-64 sm:w-72 h-64 sm:h-72 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-float" style={{ animationDelay: '4s' }} />
 
-      <div className="container mx-auto px-6 h-full relative z-10">
-        <div className="grid md:grid-cols-2 gap-12 items-center h-full">
+      <div className="container mx-auto px-4 sm:px-6 h-full relative z-10">
+        <div className="grid md:grid-cols-2 gap-10 lg:gap-12 items-center h-full">
           {/* Left Content */}
           <motion.div
             initial={{ opacity: 0, x: -50 }}
@@ -59,31 +59,31 @@ const Hero3D = () => {
               {/* <spGroqan className="text-sm font-semibold">Powered by  AI</span> */}
             </div>
 
-            <h1 className="text-6xl font-bold mb-6 leading-tight">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6 leading-tight">
               Transform Cold Outreach Into
               <span className="gradient-text block mt-2">
                 Value-Driven Conversations
               </span>
             </h1>
 
-            <p className="text-xl text-gray-600 mb-8 leading-relaxed">
+            <p className="text-lg sm:text-xl text-gray-600 mb-8 leading-relaxed">
               Generate hyper-personalized technical audits and outreach emails in seconds. 
               Powered by advanced AI to help IT agencies close more deals.
             </p>
 
-            <div className="flex gap-4 mb-12">
+            <div className="flex flex-col sm:flex-row gap-4 mb-12">
               {isLoggedIn ? (
-                <button className="btn-primary flex items-center gap-2" onClick={() => navigate('/app')}>
+                <button className="btn-primary flex items-center justify-center gap-2 py-3 px-6 sm:py-4 sm:px-8 w-full sm:w-auto" onClick={() => navigate('/app')}>
                   <Zap className="w-5 h-5" />
                   Go to Dashboard
                 </button>
               ) : (
-                <button className="btn-primary flex items-center gap-2" onClick={() => navigate('/start-trial')}>
+                <button className="btn-primary flex items-center justify-center gap-2 py-3 px-6 sm:py-4 sm:px-8 w-full sm:w-auto" onClick={() => navigate('/start-trial')}>
                   <Zap className="w-5 h-5" />
                   Start Free Trial
                 </button>
               )}
-              <button className="btn-secondary flex items-center gap-2" onClick={() => navigate('/demo')}>
+              <button className="btn-secondary flex items-center justify-center gap-2 py-3 px-6 sm:py-4 sm:px-8 w-full sm:w-auto" onClick={() => navigate('/demo')}>
                 <Target className="w-5 h-5" />
                 Watch Demo
               </button>
@@ -116,7 +116,7 @@ const Hero3D = () => {
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 1 }}
-            className="h-[500px] relative"
+            className="h-[320px] sm:h-[420px] md:h-[500px] relative"
           >
             <Canvas camera={{ position: [0, 0, 5], fov: 45 }}>
               <ambientLight intensity={0.5} />
@@ -130,7 +130,7 @@ const Hero3D = () => {
             <motion.div
               animate={{ y: [0, -10, 0] }}
               transition={{ duration: 3, repeat: Infinity }}
-              className="absolute top-10 right-10 glass-card p-4 rounded-xl shadow-2xl"
+              className="absolute top-6 sm:top-10 right-4 sm:right-10 glass-card p-4 rounded-xl shadow-2xl"
             >
               <div className="flex items-center gap-2 text-sm">
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
@@ -142,7 +142,7 @@ const Hero3D = () => {
             <motion.div
               animate={{ y: [0, 10, 0] }}
               transition={{ duration: 4, repeat: Infinity, delay: 1 }}
-              className="absolute bottom-10 left-10 glass-card p-4 rounded-xl shadow-2xl"
+              className="absolute bottom-6 sm:bottom-10 left-4 sm:left-10 glass-card p-4 rounded-xl shadow-2xl"
             >
               <div className="text-2xl font-bold gradient-text">94%</div>
               <p className="text-xs text-gray-500">Accuracy Rate</p>

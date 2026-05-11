@@ -12,7 +12,7 @@ const Navbar = () => {
       animate={{ y: 0 }}
       className="glass-card sticky top-0 z-50 border-b border-white/20"
     >
-      <div className="container mx-auto px-6 py-4">
+      <div className="container mx-auto px-4 sm:px-6 py-4">
         <div className="flex items-center justify-between">
           {/* Logo */}
           <button
@@ -20,12 +20,12 @@ const Navbar = () => {
             onClick={() => navigate('/')}
             className="flex items-center gap-3 text-left"
           >
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-xl flex items-center justify-center">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-xl flex items-center justify-center">
               <Sparkles className="w-7 h-7 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold gradient-text">Lead AI</h1>
-              <p className="text-xs text-gray-500">Sales Automation Platform</p>
+              <h1 className="text-xl sm:text-2xl font-bold gradient-text">Lead AI</h1>
+              <p className="hidden sm:block text-xs text-gray-500">Sales Automation Platform</p>
             </div>
           </button>
 
@@ -43,7 +43,7 @@ const Navbar = () => {
           </div>
 
           {/* CTA */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 sm:gap-4">
             <a href="https://github.com" target="_blank" rel="noopener noreferrer">
               <Github className="w-5 h-5 text-gray-600 hover:text-blue-600 transition-colors cursor-pointer" />
             </a>
@@ -52,11 +52,11 @@ const Navbar = () => {
             </a>
             {isLoggedIn ? (
               <>
-                <button className="btn-secondary" onClick={() => navigate('/app')}>
+                <button className="btn-secondary py-3 px-5 sm:py-4 sm:px-8" onClick={() => navigate('/app')}>
                   Dashboard
                 </button>
                 <button
-                  className="btn-primary"
+                  className="btn-primary py-3 px-5 sm:py-4 sm:px-8"
                   onClick={() => {
                     clearAuth();
                     navigate('/');
@@ -66,7 +66,7 @@ const Navbar = () => {
                 </button>
               </>
             ) : (
-              <button className="btn-primary" onClick={() => navigate('/get-started')}>
+              <button className="btn-primary py-3 px-5 sm:py-4 sm:px-8" onClick={() => navigate('/get-started')}>
                 Get Started
               </button>
             )}
