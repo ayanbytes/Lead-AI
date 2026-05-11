@@ -772,10 +772,12 @@ async def send_outreach_email(
 
 if __name__ == "__main__":
     import uvicorn
+    # Use PORT environment variable for cloud deployment (Render)
+    port = int(os.getenv("PORT", "8001"))
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
-        port=8001,
+        port=port,
         reload=False,
         log_level="info"
     )

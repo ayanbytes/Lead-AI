@@ -70,11 +70,12 @@ def _normalize_database_url(url: str) -> str:
         port_part = host_port[end+1:]
     else:
         if ":" in host_port:
-            host, port_part = host_port.rsplit(":", 1)
+            host, port_num = host_port.rsplit(":", 1)
+            port_part = f":{port_num}"  # preserve the colon separator
         else:
             host = host_port
             port_part = ""
-    
+
     # Ensure the scheme is correct
     scheme = parts.scheme
     if scheme == "postgresql":
@@ -84,8 +85,7 @@ def _normalize_database_url(url: str) -> str:
         if "postgres" in scheme:
             scheme = "postgresql+psycopg2"
 
-    # Reconstruct the URL without using parts.port
-    # We keep the port_part exactly as it was (e.g. ":5432" or ":PORT")
+    # Reconstruct the URL: host + ":port" + /dbname
     raw = f"{scheme}://{auth}{host}{port_part}{parts.path}"
     if parts.query:
         raw += f"?{parts.query}"
