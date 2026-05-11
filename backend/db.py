@@ -163,6 +163,8 @@ if DATABASE_URL.startswith("mysql") and not os.getenv("RAILWAY_ENVIRONMENT"):
 engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True,
+    # SSL is often required for cloud databases (Render/Supabase)
+    connect_args={"sslmode": "require"} if "postgresql" in DATABASE_URL and "localhost" not in DATABASE_URL and "127.0.0.1" not in DATABASE_URL else {}
 )
 
 # Basic startup diagnostics for deployed environments (safe; no password logging).
@@ -170,13 +172,22 @@ try:
     _url_for_log = engine.url
     _host = getattr(_url_for_log, "host", None) or getattr(_url_for_log, "hostname", None)
     _user = getattr(_url_for_log, "username", None)
+    _driver = _url_for_log.drivername
+    
     if _host:
         if "@" in str(_host):
-            print(f"ERROR: Parsed DB host contains '@' (likely unescaped password). host={_host}")
+            print(f"CRITICAL ERROR: Parsed DB host contains '@'. This means the password wasn't escaped correctly. host={_host}")
         else:
-            print(f"DB configured. dialect={_url_for_log.drivername} host={_host} user={_user}")
+            print(f"DATABASE: Detected dialect/driver: {_driver}")
+            print(f"DATABASE: Connected to host: {_host}")
+            print(f"DATABASE: Authenticated as user: {_user}")
+            
+    # Test connection immediately
+    with engine.connect() as conn:
+        print("DATABASE: Connection test successful.")
 except Exception as _e:
-    print(f"DB config log skipped: {_e}")
+    print(f"DATABASE ERROR: Startup connection test failed: {str(_e)}")
+
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

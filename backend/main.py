@@ -18,7 +18,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import asyncio
-from sqlalchemy.orm import Session
+from sqlalchemy import Session, text
 from sqlalchemy.exc import OperationalError
 from jose import JWTError, jwt
 
@@ -196,8 +196,38 @@ async def root():
     }
 
 @app.get("/api/health")
-async def health_check():
-    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+async def health_check(db: Session = Depends(get_db)):
+    try:
+        # Check if we can execute a simple query
+        db.execute(text("SELECT 1"))
+        return {
+            "status": "healthy",
+            "database": "connected",
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "database": "disconnected",
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
+
+@app.get("/api/debug/db")
+async def debug_db(db: Session = Depends(get_db)):
+    """Internal debug endpoint to verify table structure."""
+    try:
+        from sqlalchemy import inspect
+        inspector = inspect(engine)
+        tables = inspector.get_table_names()
+        return {
+            "status": "connected",
+            "tables": tables,
+            "dialect": engine.url.drivername
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 
 
 @app.post("/api/auth/register", response_model=AuthResponse)
@@ -219,15 +249,24 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
     if existing:
         raise HTTPException(status_code=409, detail="An account with this email already exists")
 
-    user = User(
-        email=email,
-        full_name=full_name,
-        password_hash=hash_password(password),
-        is_active=True,
-    )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
+    try:
+        user = User(
+            email=email,
+            full_name=full_name,
+            password_hash=hash_password(password),
+            is_active=True,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    except Exception as e:
+        db.rollback()
+        print(f"REGISTRATION ERROR: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Database error during registration: {str(e)}"
+        )
+
 
     token = create_access_token(subject=str(user.id), expires_in_minutes=60 * 24 * 7)
     return AuthResponse(
