@@ -7,7 +7,7 @@ from langchain_core.tools import StructuredTool
 try:
     from langchain.agents import AgentExecutor, create_tool_calling_agent
 except ImportError:
-    from langchain_core.agents import AgentExecutor
+    from langchain.agents.executor import AgentExecutor
     from langchain.agents import create_tool_calling_agent
 
 load_dotenv()
