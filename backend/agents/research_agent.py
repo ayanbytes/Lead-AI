@@ -71,9 +71,9 @@ RESEARCH PROTOCOL:
 OUTPUT FORMAT (Must follow exactly):
 
 === AUDIT SUMMARY ===
-- [Finding 1: specific, company-tailored observation with a metric when available]
-- [Finding 2: specific, company-tailored observation]
-- [Finding 3: specific, company-tailored observation]
+1) [Finding 1: specific, company-tailored observation with a metric when available]
+2) [Finding 2: specific, company-tailored observation]
+3) [Finding 3: specific, company-tailored observation]
 
 HARD RULES (non-negotiable):
 - Never write any of these phrases (or close variants): "Not measured", "Not evaluated", "Not specified", "Unknown", "N/A", "TBD", "Could not", "Can't tell".
@@ -82,6 +82,7 @@ HARD RULES (non-negotiable):
 - Do not invent exact numbers or dollar values. Use directional language ("appears", "likely", "suggests") only when you cannot verify.
 - Keep the summary engaging, confident, and specific to the company and its industry.
 - Output MUST include the section markers exactly as shown (=== ... ===). Do not add extra headings.
+- Do not use hyphen bullets, unicode bullets, or checkbox lists anywhere in the output. Use short paragraphs or numbered items only.
 
 === PROPOSED SOLUTION ===
 [2-3 sentences explaining how {agency_name} can solve the primary issue. Be specific about technologies and timeline (e.g., "2-4 week implementation")]

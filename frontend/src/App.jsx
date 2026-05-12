@@ -24,6 +24,7 @@ import Dashboard from './pages/Dashboard';
 import Payment from './pages/Payment';
 import AuditDetail from './pages/AuditDetail';
 import AuditHistory from './pages/AuditHistory';
+import Admin from './pages/Admin';
 
 function App() {
   const route = useHashRoute();
@@ -223,6 +224,7 @@ function App() {
       {route === '/login' && <Login />}
       {route?.startsWith('/audit/') && <AuditDetail route={route} />}
       {route === '/audits' && <AuditHistory />}
+      {route === '/admin' && <Admin />}
 
       {route === '/app' && (!getAuth()?.accessToken ? (
         <div className="container mx-auto px-4 sm:px-6 py-10">

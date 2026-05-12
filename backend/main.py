@@ -141,6 +141,7 @@ def _get_jwt_secret() -> str:
 
 
 from fastapi import Header  # noqa: E402
+from sqlalchemy import func  # noqa: E402
 
 
 def get_current_user_from_header(
@@ -187,6 +188,22 @@ def get_optional_user_from_header(
     if not user or not user.is_active:
         return None
     return user
+
+
+def require_admin_user(current_user: User = Depends(get_current_user_from_header)) -> User:
+    """
+    Admin access is controlled via env var ADMIN_EMAIL.
+
+    Set ADMIN_EMAIL on Render to the email address that should have admin access.
+    """
+    admin_email = (os.getenv("ADMIN_EMAIL") or "").strip().lower()
+    if not admin_email:
+        raise HTTPException(status_code=500, detail="Admin access is not configured (ADMIN_EMAIL missing).")
+
+    if (current_user.email or "").strip().lower() != admin_email:
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    return current_user
 
 # Health Check
 @app.get("/")
@@ -408,6 +425,124 @@ def delete_audit(
     db.delete(row)
     db.commit()
     return {"message": "Audit deleted successfully"}
+
+
+# Admin Endpoints
+@app.get("/api/admin/overview")
+def admin_overview(
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(require_admin_user),
+):
+    user_count = int(db.query(func.count(User.id)).scalar() or 0)
+    audit_count = int(db.query(func.count(Audit.id)).scalar() or 0)
+    return {
+        "admin": {"id": admin_user.id, "email": admin_user.email, "full_name": admin_user.full_name},
+        "totals": {"users": user_count, "audits": audit_count},
+    }
+
+
+@app.get("/api/admin/users")
+def admin_list_users(
+    page: int = 1,
+    page_size: int = 25,
+    q: str | None = None,
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(require_admin_user),
+):
+    safe_page = max(1, int(page))
+    safe_size = max(1, min(int(page_size), 100))
+    offset = (safe_page - 1) * safe_size
+
+    query = db.query(User)
+    if q:
+        needle = f"%{q.strip()}%"
+        query = query.filter((User.email.ilike(needle)) | (User.full_name.ilike(needle)))
+
+    total = int(query.with_entities(func.count(User.id)).scalar() or 0)
+    rows = (
+        query.order_by(User.created_at.desc(), User.id.desc())
+        .offset(offset)
+        .limit(safe_size)
+        .all()
+    )
+
+    user_ids = [u.id for u in rows]
+    audit_counts: dict[int, int] = {}
+    if user_ids:
+        counts = (
+            db.query(Audit.user_id, func.count(Audit.id))
+            .filter(Audit.user_id.in_(user_ids))
+            .group_by(Audit.user_id)
+            .all()
+        )
+        audit_counts = {int(uid): int(cnt) for uid, cnt in counts}
+
+    return {
+        "items": [
+            {
+                "id": u.id,
+                "email": u.email,
+                "full_name": u.full_name,
+                "is_active": u.is_active,
+                "agency_name": u.agency_name,
+                "created_at": u.created_at.isoformat() if u.created_at else None,
+                "updated_at": u.updated_at.isoformat() if u.updated_at else None,
+                "audit_count": audit_counts.get(u.id, 0),
+            }
+            for u in rows
+        ],
+        "page": safe_page,
+        "page_size": safe_size,
+        "total": total,
+    }
+
+
+@app.get("/api/admin/audits")
+def admin_list_audits(
+    page: int = 1,
+    page_size: int = 25,
+    user_id: int | None = None,
+    q: str | None = None,
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(require_admin_user),
+):
+    safe_page = max(1, int(page))
+    safe_size = max(1, min(int(page_size), 100))
+    offset = (safe_page - 1) * safe_size
+
+    query = db.query(Audit, User).join(User, User.id == Audit.user_id)
+    if user_id is not None:
+        query = query.filter(Audit.user_id == int(user_id))
+    if q:
+        needle = f"%{q.strip()}%"
+        query = query.filter((Audit.company_name.ilike(needle)) | (User.email.ilike(needle)))
+
+    total = int(query.with_entities(func.count(Audit.id)).scalar() or 0)
+    rows = (
+        query.order_by(Audit.created_at.desc(), Audit.id.desc())
+        .offset(offset)
+        .limit(safe_size)
+        .all()
+    )
+
+    return {
+        "items": [
+            {
+                "id": audit.id,
+                "user": {"id": user.id, "email": user.email, "full_name": user.full_name},
+                "company_name": audit.company_name,
+                "industry": audit.industry,
+                "website": audit.website,
+                "status": audit.status,
+                "error_message": audit.error_message,
+                "created_at": audit.created_at.isoformat() if audit.created_at else None,
+            }
+            for audit, user in rows
+        ],
+        "page": safe_page,
+        "page_size": safe_size,
+        "total": total,
+    }
 
 
 
