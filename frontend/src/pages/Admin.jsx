@@ -194,7 +194,33 @@ function Admin() {
               <div className="text-sm text-gray-600 mb-3">
                 {usersLoading ? 'Loading users…' : `${usersTotal} total users`}
               </div>
-              <div className="overflow-x-auto">
+              <div className="grid gap-3 md:hidden">
+                {users.map((u) => (
+                  <div key={u.id} className="rounded-2xl bg-white/70 border border-white/60 p-4">
+                    <div className="font-extrabold text-gray-900">{u.full_name || '—'}</div>
+                    <div className="text-sm text-gray-700 mt-1">{u.email}</div>
+                    <div className="text-sm text-gray-600 mt-2">
+                      Agency: <span className="font-semibold text-gray-800">{u.agency_name || '—'}</span>
+                    </div>
+                    <div className="text-sm text-gray-600 mt-1">
+                      Audits: <span className="font-semibold text-gray-800">{u.audit_count ?? 0}</span>
+                    </div>
+                    <div className="text-xs text-gray-500 mt-2">
+                      Created: {u.created_at ? new Date(u.created_at).toLocaleString() : '—'}
+                    </div>
+                    <div className="mt-3">
+                      <span className={`px-2 py-1 rounded-lg text-xs font-bold ${u.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-700'}`}>
+                        {u.is_active ? 'Active' : 'Disabled'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                {!usersLoading && users.length === 0 ? (
+                  <div className="py-8 text-center text-gray-500">No users found.</div>
+                ) : null}
+              </div>
+
+              <div className="overflow-x-auto hidden md:block">
                 <table className="min-w-full text-sm">
                   <thead>
                     <tr className="text-left text-gray-500">
@@ -244,7 +270,28 @@ function Admin() {
               <div className="text-sm text-gray-600 mb-3">
                 {auditsLoading ? 'Loading audits…' : `${auditsTotal} total audits`}
               </div>
-              <div className="overflow-x-auto">
+              <div className="grid gap-3 md:hidden">
+                {audits.map((a) => (
+                  <div key={a.id} className="rounded-2xl bg-white/70 border border-white/60 p-4">
+                    <div className="font-extrabold text-gray-900">{a.company_name || '—'}</div>
+                    <div className="text-sm text-gray-700 mt-1">{a.industry || 'General'}</div>
+                    <div className="text-sm text-gray-600 mt-2">
+                      User: <span className="font-semibold text-gray-800">{a.user?.email || '—'}</span>
+                    </div>
+                    <div className="text-sm text-gray-600 mt-1">
+                      Status: <span className="font-semibold text-gray-800">{a.status || '—'}</span>
+                    </div>
+                    <div className="text-xs text-gray-500 mt-2">
+                      Created: {a.created_at ? new Date(a.created_at).toLocaleString() : '—'}
+                    </div>
+                  </div>
+                ))}
+                {!auditsLoading && audits.length === 0 ? (
+                  <div className="py-8 text-center text-gray-500">No audits found.</div>
+                ) : null}
+              </div>
+
+              <div className="overflow-x-auto hidden md:block">
                 <table className="min-w-full text-sm">
                   <thead>
                     <tr className="text-left text-gray-500">
@@ -291,4 +338,3 @@ function Admin() {
 }
 
 export default Admin;
-
