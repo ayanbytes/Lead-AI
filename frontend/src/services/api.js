@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { getAccessToken } from '../utils/storage';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -117,37 +117,6 @@ export const fetchAuditById = async (auditId) => {
 export const fetchAudits = async ({ page = 1, pageSize = 20 } = {}) => {
   try {
     const response = await api.get('/api/audits', { params: { page, page_size: pageSize } });
-    return response.data;
-  } catch (error) {
-    throw new Error(error.response?.data?.detail || 'Failed to fetch audits');
-  }
-};
-
-export const fetchAdminOverview = async () => {
-  try {
-    const response = await api.get('/api/admin/overview');
-    return response.data;
-  } catch (error) {
-    throw new Error(error.response?.data?.detail || 'Failed to fetch admin overview');
-  }
-};
-
-export const fetchAdminUsers = async ({ page = 1, pageSize = 25, q = '' } = {}) => {
-  try {
-    const response = await api.get('/api/admin/users', {
-      params: { page, page_size: pageSize, q: q || undefined },
-    });
-    return response.data;
-  } catch (error) {
-    throw new Error(error.response?.data?.detail || 'Failed to fetch users');
-  }
-};
-
-export const fetchAdminAudits = async ({ page = 1, pageSize = 25, q = '', userId } = {}) => {
-  try {
-    const response = await api.get('/api/admin/audits', {
-      params: { page, page_size: pageSize, q: q || undefined, user_id: userId ?? undefined },
-    });
     return response.data;
   } catch (error) {
     throw new Error(error.response?.data?.detail || 'Failed to fetch audits');

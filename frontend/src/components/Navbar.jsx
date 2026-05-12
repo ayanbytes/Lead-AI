@@ -1,19 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
-import { Github, Menu, Sparkles, Twitter, X } from 'lucide-react';
+import { Sparkles, Github, Twitter } from 'lucide-react';
 import { navigate } from '../utils/router';
 import { getAuth, clearAuth } from '../utils/storage';
 
 const Navbar = () => {
   const isLoggedIn = Boolean(getAuth()?.accessToken);
-  const [mobileOpen, setMobileOpen] = useState(false);
-
-  useEffect(() => {
-    const onHashChange = () => setMobileOpen(false);
-    window.addEventListener('hashchange', onHashChange);
-    return () => window.removeEventListener('hashchange', onHashChange);
-  }, []);
-
   return (
     <motion.nav 
       initial={{ y: -100 }}
@@ -39,27 +31,25 @@ const Navbar = () => {
 
           {/* Navigation */}
           <div className="hidden md:flex items-center gap-8">
-            <a href="#/" className="text-gray-700 hover:text-blue-700 font-semibold transition-colors">
+            <a href="#/" className="text-gray-600 hover:text-blue-600 font-medium transition-colors">
               Home
             </a>
-            <a href="#/features" className="text-gray-700 hover:text-blue-700 font-semibold transition-colors">
+            <a href="#/features" className="text-gray-600 hover:text-blue-600 font-medium transition-colors">
               Features
             </a>
-            <a href="#/pricing" className="text-gray-700 hover:text-blue-700 font-semibold transition-colors">
+            <a href="#/pricing" className="text-gray-600 hover:text-blue-600 font-medium transition-colors">
               Pricing
             </a>
           </div>
 
           {/* CTA */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="hidden sm:flex items-center gap-3">
-              <a href="https://github.com" target="_blank" rel="noopener noreferrer" aria-label="GitHub">
-                <Github className="w-5 h-5 text-gray-600 hover:text-blue-700 transition-colors cursor-pointer" />
-              </a>
-              <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" aria-label="Twitter">
-                <Twitter className="w-5 h-5 text-gray-600 hover:text-blue-700 transition-colors cursor-pointer" />
-              </a>
-            </div>
+          <div className="flex items-center gap-3 sm:gap-4">
+            <a href="https://github.com" target="_blank" rel="noopener noreferrer">
+              <Github className="w-5 h-5 text-gray-600 hover:text-blue-600 transition-colors cursor-pointer" />
+            </a>
+            <a href="https://twitter.com" target="_blank" rel="noopener noreferrer">
+              <Twitter className="w-5 h-5 text-gray-600 hover:text-blue-600 transition-colors cursor-pointer" />
+            </a>
             {isLoggedIn ? (
               <>
                 <button className="btn-secondary py-3 px-5 sm:py-4 sm:px-8" onClick={() => navigate('/app')}>
@@ -80,70 +70,8 @@ const Navbar = () => {
                 Get Started
               </button>
             )}
-
-            <button
-              type="button"
-              className="md:hidden inline-flex items-center justify-center w-11 h-11 rounded-2xl bg-white/70 border border-white/60 shadow-sm"
-              onClick={() => setMobileOpen((v) => !v)}
-              aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
-            >
-              {mobileOpen ? <X className="w-5 h-5 text-gray-700" /> : <Menu className="w-5 h-5 text-gray-700" />}
-            </button>
           </div>
         </div>
-
-        {mobileOpen ? (
-          <div className="md:hidden mt-4">
-            <div className="rounded-2xl bg-white/70 backdrop-blur-sm border border-white/60 p-3 flex flex-col gap-2">
-              <a
-                href="#/"
-                className="px-3 py-2 rounded-xl text-gray-800 font-semibold hover:bg-white/80 transition-colors"
-              >
-                Home
-              </a>
-              <a
-                href="#/features"
-                className="px-3 py-2 rounded-xl text-gray-800 font-semibold hover:bg-white/80 transition-colors"
-              >
-                Features
-              </a>
-              <a
-                href="#/pricing"
-                className="px-3 py-2 rounded-xl text-gray-800 font-semibold hover:bg-white/80 transition-colors"
-              >
-                Pricing
-              </a>
-              {isLoggedIn ? (
-                <>
-                  <a
-                    href="#/admin"
-                    className="px-3 py-2 rounded-xl text-gray-800 font-semibold hover:bg-white/80 transition-colors"
-                  >
-                    Admin
-                  </a>
-                  <button
-                    type="button"
-                    className="px-3 py-2 rounded-xl text-left text-red-700 font-semibold hover:bg-white/80 transition-colors"
-                    onClick={() => {
-                      clearAuth();
-                      navigate('/');
-                    }}
-                  >
-                    Log out
-                  </button>
-                </>
-              ) : null}
-              <div className="flex items-center gap-3 px-3 py-2">
-                <a href="https://github.com" target="_blank" rel="noopener noreferrer" aria-label="GitHub">
-                  <Github className="w-5 h-5 text-gray-600 hover:text-blue-700 transition-colors cursor-pointer" />
-                </a>
-                <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" aria-label="Twitter">
-                  <Twitter className="w-5 h-5 text-gray-600 hover:text-blue-700 transition-colors cursor-pointer" />
-                </a>
-              </div>
-            </div>
-          </div>
-        ) : null}
       </div>
     </motion.nav>
   );
