@@ -262,7 +262,9 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
         db.refresh(user)
     except Exception as e:
         db.rollback()
+        import traceback
         print(f"REGISTRATION ERROR: {str(e)}")
+        traceback.print_exc()
         raise HTTPException(
             status_code=500, 
             detail=f"Database error during registration: {str(e)}"
