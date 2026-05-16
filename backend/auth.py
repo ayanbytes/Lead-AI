@@ -38,4 +38,7 @@ def create_access_token(*, subject: str, expires_in_minutes: int) -> str:
     "iat": int(now.timestamp()),
     "exp": int((now + timedelta(minutes=expires_in_minutes)).timestamp()),
   }
-  return jwt.encode(payload, _get_secret_key(), algorithm="HS256")
+  secret = _get_secret_key()
+  encoded = jwt.encode(payload, secret, algorithm="HS256")
+  print(f"[AUTH DEBUG] Created token for sub {subject} with secret len {len(secret)} prefix {secret[:5]}... token prefix {encoded[:15]}...")
+  return encoded

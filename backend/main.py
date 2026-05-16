@@ -30,7 +30,7 @@ from jose import JWTError, jwt
 
 from db import engine, get_db
 from models import User, Audit
-from auth import create_access_token, hash_password, verify_password
+from auth import create_access_token, hash_password, verify_password, _get_secret_key
 from agents.research_agent import LeadResearchAgent
 from utils.pdf_generator import generate_pdf_report
 
@@ -191,10 +191,6 @@ class VerifyPaymentRequest(BaseModel):
     plan_name: str
 
 
-def _get_jwt_secret() -> str:
-    return os.getenv("JWT_SECRET", "change-me-to-a-long-random-string-leadai-2026")
-
-
 from fastapi import Header  # noqa: E402
 from sqlalchemy import func  # noqa: E402
 
@@ -208,15 +204,17 @@ def get_current_user_from_header(
         raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
 
     token = authorization.split(" ", 1)[1].strip()
+    secret = _get_secret_key()
+    print(f"[AUTH DEBUG] Verifying token {token[:15]}... with secret len {len(secret)} prefix {secret[:5]}...")
     try:
-        payload = jwt.decode(token, _get_jwt_secret(), algorithms=["HS256"])
+        payload = jwt.decode(token, secret, algorithms=["HS256"])
         subject = payload.get("sub")
         if not subject:
             print("[AUTH ERROR] Token missing 'sub' claim")
             raise HTTPException(status_code=401, detail="Invalid token")
         user_id = int(subject)
     except Exception as e:
-        print(f"[AUTH ERROR] jwt.decode failed: {str(e)} (secret prefix: {_get_jwt_secret()[:5]})")
+        print(f"[AUTH ERROR] jwt.decode failed: {str(e)} (secret prefix: {secret[:5]})")
         raise HTTPException(status_code=401, detail=f"Invalid token: {str(e)}")
 
     user = db.query(User).filter(User.id == user_id).first()
@@ -234,8 +232,9 @@ def get_optional_user_from_header(
         return None
 
     token = authorization.split(" ", 1)[1].strip()
+    secret = _get_secret_key()
     try:
-        payload = jwt.decode(token, _get_jwt_secret(), algorithms=["HS256"])
+        payload = jwt.decode(token, secret, algorithms=["HS256"])
         subject = payload.get("sub")
         if not subject:
             return None
