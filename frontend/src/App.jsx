@@ -43,6 +43,13 @@ function App() {
     timesSaved: 0
   });
 
+  useEffect(() => {
+    if (route.includes('?tab=discovery')) setActiveTab('discovery');
+    else if (route.includes('?tab=bulk')) setActiveTab('bulk');
+    else if (route.includes('?tab=settings')) setActiveTab('settings');
+    else if (route.includes('?tab=single')) setActiveTab('single');
+  }, [route]);
+
   const uniqueHomeCompanies = useMemo(
     () => new Set(homeAudits.map((a) => (a.company_name || '').trim()).filter(Boolean)).size,
     [homeAudits]
@@ -100,7 +107,7 @@ function App() {
       
       <Navbar />
 
-      {route === '/' && (
+      {(route === '/' || route.startsWith('/?tab=')) && (
         <>
           <Hero3D />
 

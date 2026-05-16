@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Building2, Globe, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -16,6 +16,14 @@ const SingleAnalysis = ({ updateStats }) => {
     includeCompetitors: false,
     agencyName: 'Your IT Agency'
   });
+
+  useEffect(() => {
+    const quick = localStorage.getItem('quick_company');
+    if (quick) {
+      setFormData(prev => ({ ...prev, companyName: quick }));
+      localStorage.removeItem('quick_company');
+    }
+  }, []);
 
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState(null);
