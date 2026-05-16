@@ -164,7 +164,7 @@ engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True,
     pool_recycle=300, # Recycle connections after 5 mins to prevent Render connection drops
-    connect_args={"sslmode": "require"} if ("postgresql" in DATABASE_URL and "localhost" not in DATABASE_URL and "127.0.0.1" not in DATABASE_URL and ".internal" not in DATABASE_URL) else {}
+    connect_args={}
 )
 
 # Basic startup diagnostics for deployed environments (safe; no password logging).
