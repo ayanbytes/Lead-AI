@@ -16,6 +16,10 @@ class User(Base):
   is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
   agency_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
   
+  # Subscription/Razorpay Fields
+  razorpay_order_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+  razorpay_payment_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+  plan_type: Mapped[str] = mapped_column(String(50), default="Starter", nullable=False)
   # SMTP Settings for outreach
   smtp_server: Mapped[str | None] = mapped_column(String(255), nullable=True)
   smtp_port: Mapped[int | None] = mapped_column(nullable=True)

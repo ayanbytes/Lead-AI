@@ -229,4 +229,30 @@ export const sendEmail = async (emailData) => {
   }
 };
 
+export const createRazorpayOrder = async ({ planName, price }) => {
+  try {
+    const response = await api.post('/api/payment/create-order', {
+      plan_name: planName,
+      price: String(price)
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || 'Failed to create order');
+  }
+};
+
+export const verifyRazorpayPayment = async ({ razorpay_order_id, razorpay_payment_id, razorpay_signature, plan_name }) => {
+  try {
+    const response = await api.post('/api/payment/verify', {
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      plan_name
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || 'Failed to verify payment');
+  }
+};
+
 export default api;

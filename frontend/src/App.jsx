@@ -23,6 +23,8 @@ import Login from './pages/Login';
 import GetStarted from './pages/GetStarted';
 import Dashboard from './pages/Dashboard';
 import Payment from './pages/Payment';
+import PaymentSuccess from './pages/PaymentSuccess';
+import PaymentCancel from './pages/PaymentCancel';
 import AuditDetail from './pages/AuditDetail';
 import AuditHistory from './pages/AuditHistory';
 
@@ -218,6 +220,8 @@ function App() {
       {route === '/features' && <Features />}
       {route === '/pricing' && <Pricing />}
       {route === '/payment' && <Payment />}
+      {route?.startsWith('/payment/success') && <PaymentSuccess />}
+      {route === '/payment/cancel' && <PaymentCancel />}
       {route === '/docs' && <Docs />}
       {route === '/demo' && <Demo />}
       {route === '/get-started' && <GetStarted />}

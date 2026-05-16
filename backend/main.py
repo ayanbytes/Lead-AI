@@ -1,3 +1,4 @@
+import razorpay
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
@@ -131,6 +132,16 @@ class SendEmailRequest(BaseModel):
 
 class SearchRequest(BaseModel):
     query: str
+
+class CheckoutRequest(BaseModel):
+    plan_name: str
+    price: str
+
+class VerifyPaymentRequest(BaseModel):
+    razorpay_order_id: str
+    razorpay_payment_id: str
+    razorpay_signature: str
+    plan_name: str
 
 
 def _get_jwt_secret() -> str:
@@ -944,6 +955,58 @@ async def send_outreach_email(
     except Exception as e:
         print(f"Email sending error: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
+
+razorpay_client = razorpay.Client(
+    auth=(os.getenv("RAZORPAY_KEY_ID", ""), os.getenv("RAZORPAY_KEY_SECRET", ""))
+)
+
+@app.post("/api/payment/create-order")
+def create_razorpay_order(request: CheckoutRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user_from_header)):
+    prices = {
+        "Pro": 4900,
+        "Team": 12900
+    }
+    amount = prices.get(request.plan_name, 0)
+    if amount == 0:
+        raise HTTPException(status_code=400, detail="Invalid plan or free plan selected")
+
+    try:
+        order_data = {
+            "amount": amount * 100, # Razorpay expects amount in smallest currency unit (cents/paise)
+            "currency": "USD",
+            "receipt": f"receipt_{current_user.id}",
+            "notes": {
+                "plan_name": request.plan_name,
+                "user_id": current_user.id
+            }
+        }
+        order = razorpay_client.order.create(data=order_data)
+        
+        current_user.razorpay_order_id = order['id']
+        db.commit()
+        
+        return {"order_id": order['id'], "amount": amount * 100, "currency": "USD", "key_id": os.getenv("RAZORPAY_KEY_ID")}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/payment/verify")
+def verify_payment(request: VerifyPaymentRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user_from_header)):
+    try:
+        razorpay_client.utility.verify_payment_signature({
+            'razorpay_order_id': request.razorpay_order_id,
+            'razorpay_payment_id': request.razorpay_payment_id,
+            'razorpay_signature': request.razorpay_signature
+        })
+        
+        current_user.razorpay_payment_id = request.razorpay_payment_id
+        current_user.plan_type = request.plan_name
+        db.commit()
+        
+        return {"status": "success"}
+    except razorpay.errors.SignatureVerificationError:
+        raise HTTPException(status_code=400, detail="Signature verification failed")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn

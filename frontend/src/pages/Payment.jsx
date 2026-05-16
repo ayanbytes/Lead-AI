@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import PageShell from '../components/PageShell';
 import { getSelectedPlan, clearSelectedPlan } from '../utils/storage';
 import { navigate } from '../utils/router';
+import { createRazorpayOrder, verifyRazorpayPayment } from '../services/api';
 
 function formatAmount(amount) {
   if (!amount) return '';
@@ -13,12 +14,68 @@ export default function Payment() {
   const plan = useMemo(() => getSelectedPlan(), []);
   const [processing, setProcessing] = useState(false);
 
+  const loadRazorpay = () => {
+    return new Promise((resolve) => {
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
   const onPay = async () => {
     setProcessing(true);
     try {
-      // Placeholder for payment gateway integration (Stripe/Razorpay).
-      await new Promise((r) => setTimeout(r, 900));
-      toast.success('Payment flow placeholder: integrate Stripe/Razorpay next.');
+      const res = await loadRazorpay();
+      if (!res) {
+        toast.error('Razorpay SDK failed to load. Are you online?');
+        setProcessing(false);
+        return;
+      }
+
+      const order = await createRazorpayOrder({
+        planName: plan.name,
+        price: plan.price
+      });
+
+      const options = {
+        key: order.key_id,
+        amount: order.amount,
+        currency: order.currency,
+        name: 'Lead-AI',
+        description: `${plan.name} Plan`,
+        order_id: order.order_id,
+        handler: async function (response) {
+          try {
+            await verifyRazorpayPayment({
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_signature: response.razorpay_signature,
+              plan_name: plan.name
+            });
+            navigate('/payment/success');
+          } catch (err) {
+            toast.error('Payment verification failed');
+          }
+        },
+        prefill: {
+          name: '', 
+          email: '',
+        },
+        theme: {
+          color: '#2563EB' // blue-600
+        }
+      };
+      
+      const rzp1 = new window.Razorpay(options);
+      rzp1.on('payment.failed', function (response) {
+        toast.error(`Payment failed: ${response.error.description}`);
+      });
+      rzp1.open();
+
+    } catch (err) {
+      toast.error('Payment failed: ' + err.message);
     } finally {
       setProcessing(false);
     }
@@ -41,32 +98,13 @@ export default function Payment() {
     <PageShell title="Payment" subtitle="Review your plan and proceed securely.">
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 glass-card rounded-2xl p-6 border border-white/40">
-          <div className="text-lg font-extrabold text-gray-900">Card details</div>
-          <div className="text-gray-600 mt-1">Connect a payment provider to enable real payments.</div>
+          <div className="text-lg font-extrabold text-gray-900">Payment details</div>
+          <div className="text-gray-600 mt-1">Click the button below to pay securely via Razorpay.</div>
 
           <div className="mt-6 grid gap-4">
-            <div>
-              <label className="text-sm font-semibold text-gray-700">Card number</label>
-              <input className="input-field mt-2" placeholder="1234 1234 1234 1234" disabled />
-            </div>
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-semibold text-gray-700">Expiry</label>
-                <input className="input-field mt-2" placeholder="MM/YY" disabled />
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-gray-700">CVV</label>
-                <input className="input-field mt-2" placeholder="123" disabled />
-              </div>
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-gray-700">Name on card</label>
-              <input className="input-field mt-2" placeholder="Full name" disabled />
-            </div>
-
             <div className="flex flex-wrap gap-3 pt-2">
               <button className="btn-primary py-3 px-6 rounded-xl" disabled={processing} onClick={onPay}>
-                {processing ? 'Processing…' : 'Proceed to pay'}
+                {processing ? 'Processing…' : 'Pay with Razorpay'}
               </button>
               <button
                 className="btn-secondary py-3 px-6 rounded-xl"
@@ -99,4 +137,3 @@ export default function Payment() {
     </PageShell>
   );
 }
-
