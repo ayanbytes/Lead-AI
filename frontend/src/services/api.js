@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { getAccessToken } from '../utils/storage';
+import { getAccessToken, clearAuth } from '../utils/storage';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001';
 
@@ -33,6 +33,9 @@ api.interceptors.response.use(
   },
   (error) => {
     console.error('API Error:', error);
+    if (error.response?.status === 401) {
+      clearAuth();
+    }
     return Promise.reject(error);
   }
 );

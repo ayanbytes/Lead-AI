@@ -17,7 +17,8 @@ from email.mime.multipart import MIMEMultipart
 from dotenv import load_dotenv
 
 # Load environment variables from backend/.env for local development
-load_dotenv()
+_env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+load_dotenv(_env_path)
 
 import asyncio
 # RENDER_SYNC_V2: 2026-05-11
