@@ -163,8 +163,8 @@ if DATABASE_URL.startswith("mysql") and not os.getenv("RAILWAY_ENVIRONMENT"):
 engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True,
-    # SSL is often required for cloud databases (Render/Supabase)
-    connect_args={"sslmode": "require"} if "postgresql" in DATABASE_URL and "localhost" not in DATABASE_URL and "127.0.0.1" not in DATABASE_URL else {}
+    pool_recycle=300, # Recycle connections after 5 mins to prevent Render connection drops
+    connect_args={"sslmode": "require"} if ("postgresql" in DATABASE_URL and "localhost" not in DATABASE_URL and "127.0.0.1" not in DATABASE_URL and ".internal" not in DATABASE_URL) else {}
 )
 
 # Basic startup diagnostics for deployed environments (safe; no password logging).
