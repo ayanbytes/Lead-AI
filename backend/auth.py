@@ -19,9 +19,7 @@ def verify_password(password: str, password_hash: str) -> bool:
 
 
 def _get_secret_key() -> str:
-  secret = os.getenv("JWT_SECRET")
-  if not secret:
-    raise RuntimeError("JWT_SECRET is not set")
+  secret = os.getenv("JWT_SECRET", "change-me-to-a-long-random-string-leadai-2026")
   return secret
 
 
