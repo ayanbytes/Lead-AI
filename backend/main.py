@@ -114,19 +114,22 @@ def _startup():
     # Keep it simple for this project: create tables at startup.
     from db import Base  # local import to avoid circulars
     Base.metadata.create_all(bind=engine)
-    try:
-        with engine.connect() as conn:
-            conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS tokens_used INTEGER DEFAULT 0 NOT NULL"))
-            conn.commit()
-    except Exception as e:
-        print(f"Startup schema check notice (tokens_used): {e}")
-
-    try:
-        with engine.connect() as conn:
-            conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS tokens_limit INTEGER DEFAULT 3 NOT NULL"))
-            conn.commit()
-    except Exception as e:
-        print(f"Startup schema check notice (tokens_limit): {e}")
+    
+    columns_to_check = [
+        ("tokens_used", "INTEGER DEFAULT 0 NOT NULL"),
+        ("tokens_limit", "INTEGER DEFAULT 3 NOT NULL"),
+        ("razorpay_order_id", "VARCHAR(255)"),
+        ("razorpay_payment_id", "VARCHAR(255)"),
+        ("plan_type", "VARCHAR(50) DEFAULT 'Starter' NOT NULL")
+    ]
+    
+    for col_name, col_def in columns_to_check:
+        try:
+            with engine.connect() as conn:
+                conn.execute(text(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {col_name} {col_def}"))
+                conn.commit()
+        except Exception as e:
+            print(f"Startup schema check notice ({col_name}): {e}")
 
 
 # Request Models
