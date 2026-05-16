@@ -13,10 +13,12 @@ export function getAuth() {
 
 export function setAuth(auth) {
   localStorage.setItem(AUTH_KEY, JSON.stringify(auth));
+  window.dispatchEvent(new Event('auth_changed'));
 }
 
 export function clearAuth() {
   localStorage.removeItem(AUTH_KEY);
+  window.dispatchEvent(new Event('auth_changed'));
 }
 
 export function getAccessToken() {

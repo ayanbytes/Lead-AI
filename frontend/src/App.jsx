@@ -11,6 +11,7 @@ import StatsCard from './components/StatsCard';
 import { BarChart3, Zap, Users, TrendingUp, Sparkles } from 'lucide-react';
 import { useHashRoute, navigate } from './utils/router';
 import { getAuth, clearAuth } from './utils/storage';
+import { useAuth } from './utils/useAuth';
 import { fetchRecentAudits } from './services/api';
 
 import Features from './pages/Features';
@@ -27,8 +28,9 @@ import AuditHistory from './pages/AuditHistory';
 
 function App() {
   const route = useHashRoute();
+  const auth = useAuth();
   const [activeTab, setActiveTab] = useState('single');
-  const isLoggedIn = Boolean(getAuth()?.accessToken);
+  const isLoggedIn = Boolean(auth?.accessToken);
   const [homeAudits, setHomeAudits] = useState([]);
   const [homeAuditsLoading, setHomeAuditsLoading] = useState(false);
   const [homeAuditsError, setHomeAuditsError] = useState('');

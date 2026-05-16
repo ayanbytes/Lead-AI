@@ -2,10 +2,12 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles, Github, Twitter } from 'lucide-react';
 import { navigate } from '../utils/router';
-import { getAuth, clearAuth } from '../utils/storage';
+import { clearAuth } from '../utils/storage';
+import { useAuth } from '../utils/useAuth';
 
 const Navbar = () => {
-  const isLoggedIn = Boolean(getAuth()?.accessToken);
+  const auth = useAuth();
+  const isLoggedIn = Boolean(auth?.accessToken);
   return (
     <motion.nav 
       initial={{ y: -100 }}

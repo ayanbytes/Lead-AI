@@ -5,9 +5,8 @@ from jose import jwt
 from passlib.context import CryptContext
 
 _pwd_context = CryptContext(
-  # Avoid bcrypt's 72-byte password limit and bcrypt backend issues on some
-  # platforms/runtimes by using a KDF with no such limit.
-  schemes=["pbkdf2_sha256"],
+  schemes=["bcrypt", "pbkdf2_sha256"],
+  default="bcrypt",
   deprecated="auto",
 )
 
