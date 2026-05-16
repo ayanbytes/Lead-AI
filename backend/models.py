@@ -20,6 +20,8 @@ class User(Base):
   razorpay_order_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
   razorpay_payment_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
   plan_type: Mapped[str] = mapped_column(String(50), default="Starter", nullable=False)
+  tokens_used: Mapped[int] = mapped_column(default=0, nullable=False)
+  tokens_limit: Mapped[int] = mapped_column(default=3, nullable=False)
   # SMTP Settings for outreach
   smtp_server: Mapped[str | None] = mapped_column(String(255), nullable=True)
   smtp_port: Mapped[int | None] = mapped_column(nullable=True)

@@ -131,6 +131,14 @@ def _startup():
     # Keep it simple for this project: create tables at startup.
     from db import Base  # local import to avoid circulars
     Base.metadata.create_all(bind=engine)
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE users ADD COLUMN tokens_used INTEGER DEFAULT 0 NOT NULL"))
+            conn.execute(text("ALTER TABLE users ADD COLUMN tokens_limit INTEGER DEFAULT 3 NOT NULL"))
+            conn.commit()
+    except Exception:
+        pass  # Columns already exist in existing DB
+
 
 # Request Models
 class AnalysisRequest(BaseModel):
@@ -327,6 +335,9 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
             full_name=full_name,
             password_hash=hash_password(password),
             is_active=True,
+            plan_type="Starter",
+            tokens_used=0,
+            tokens_limit=3,
         )
         db.add(user)
         db.commit()
@@ -345,7 +356,14 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
     token = create_access_token(subject=str(user.id), expires_in_minutes=60 * 24 * 7)
     return AuthResponse(
         access_token=token,
-        user={"id": user.id, "email": user.email, "full_name": user.full_name},
+        user={
+            "id": user.id,
+            "email": user.email,
+            "full_name": user.full_name,
+            "plan_type": user.plan_type,
+            "tokens_used": user.tokens_used,
+            "tokens_limit": user.tokens_limit,
+        },
     )
 
 
@@ -367,13 +385,27 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
     token = create_access_token(subject=str(user.id), expires_in_minutes=60 * 24 * 7)
     return AuthResponse(
         access_token=token,
-        user={"id": user.id, "email": user.email, "full_name": user.full_name},
+        user={
+            "id": user.id,
+            "email": user.email,
+            "full_name": user.full_name,
+            "plan_type": user.plan_type,
+            "tokens_used": user.tokens_used,
+            "tokens_limit": user.tokens_limit,
+        },
     )
 
 
 @app.get("/api/auth/me")
 def me(current_user: User = Depends(get_current_user_from_header)):
-    return {"id": current_user.id, "email": current_user.email, "full_name": current_user.full_name}
+    return {
+        "id": current_user.id,
+        "email": current_user.email,
+        "full_name": current_user.full_name,
+        "plan_type": current_user.plan_type,
+        "tokens_used": current_user.tokens_used,
+        "tokens_limit": current_user.tokens_limit,
+    }
 
 
 @app.get("/api/audits/recent")
@@ -640,6 +672,13 @@ async def analyze_company(
             return JSONResponse(content=cached)
 
         # Run analysis (hits Tavily → DuckDuckGo fallback → Groq)
+        if current_user and current_user.plan_type.lower() == "starter":
+            if current_user.tokens_used >= current_user.tokens_limit:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Free plan limit reached ({current_user.tokens_used}/{current_user.tokens_limit} company analyses used). Please upgrade to Pro or Team to unlock unlimited analyses."
+                )
+
         result = get_agent().analyze_company(
             company_name=request.company_name,
             industry=request.industry,
@@ -649,9 +688,12 @@ async def analyze_company(
             website=request.website
         )
 
-        # Cache the result for 1 hour
+        # Increment quota only on successful analysis
         if result.get("status") == "Success":
             _set_cached_analysis(ck, result)
+            if current_user and current_user.plan_type.lower() == "starter":
+                current_user.tokens_used += 1
+                db.commit()
 
         # Persist audit only for authenticated users
         if current_user:
@@ -688,6 +730,13 @@ async def analyze_bulk(
     Process multiple companies from CSV file
     """
     try:
+        # Enforce Pro/Team plan for bulk analysis
+        if current_user and current_user.plan_type.lower() == "starter":
+            raise HTTPException(
+                status_code=403,
+                detail="Bulk analysis is a premium feature available on Pro and Team plans. Please upgrade your account to process CSV lists."
+            )
+
         # Validate file type
         if not file.filename.endswith('.csv'):
             raise HTTPException(status_code=400, detail="Only CSV files are allowed")
@@ -1088,9 +1137,15 @@ def create_razorpay_order(request: CheckoutRequest, db: Session = Depends(get_db
 
 @app.post("/api/payment/verify")
 def verify_payment(request: VerifyPaymentRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user_from_header)):
+    is_pro_or_team = request.plan_name.lower() in ["pro", "team"]
+    limit = 1000 if request.plan_name.lower() == "pro" else 5000
+
     if request.razorpay_order_id.startswith("order_demo_"):
         current_user.razorpay_payment_id = request.razorpay_payment_id
         current_user.plan_type = request.plan_name
+        if is_pro_or_team:
+            current_user.tokens_limit = limit
+            current_user.tokens_used = 0
         db.commit()
         return {"status": "success", "demo_mode": True}
 
@@ -1103,6 +1158,9 @@ def verify_payment(request: VerifyPaymentRequest, db: Session = Depends(get_db),
         
         current_user.razorpay_payment_id = request.razorpay_payment_id
         current_user.plan_type = request.plan_name
+        if is_pro_or_team:
+            current_user.tokens_limit = limit
+            current_user.tokens_used = 0
         db.commit()
         
         return {"status": "success"}
