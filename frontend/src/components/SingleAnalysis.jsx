@@ -4,7 +4,8 @@ import { Search, Building2, Globe, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
 import LoadingAnimation from './LoadingAnimation';
 import ResultsDisplay from './ResultsDisplay';
-import { analyzeCompany } from '../services/api';
+import { analyzeCompany, fetchMe } from '../services/api';
+import { getAuth, setAuth } from '../utils/storage';
 
 const SingleAnalysis = ({ updateStats }) => {
   const [formData, setFormData] = useState({
@@ -54,6 +55,18 @@ const SingleAnalysis = ({ updateStats }) => {
         companiesProcessed: prev.companiesProcessed + 1,
         timesSaved: prev.timesSaved + 2 // Assume 2 hours saved per analysis
       }));
+
+      // Background sync token quota
+      if (getAuth()?.accessToken) {
+        fetchMe()
+          .then((updatedUser) => {
+            const current = getAuth();
+            if (current && updatedUser) {
+              setAuth({ ...current, user: updatedUser });
+            }
+          })
+          .catch(() => {});
+      }
     } catch (error) {
       toast.error(error.message || 'Analysis failed. Please try again.');
       console.error('Analysis error:', error);

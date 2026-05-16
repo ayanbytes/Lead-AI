@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import PageShell from '../components/PageShell';
-import { getAuth, clearAuth } from '../utils/storage';
+import { getAuth, setAuth, clearAuth } from '../utils/storage';
 import { navigate } from '../utils/router';
-import { BarChart3, CheckCircle2, Clock, FileText, Rocket, ShieldCheck, UploadCloud, User2 } from 'lucide-react';
-import { fetchRecentAudits } from '../services/api';
+import { BarChart3, CheckCircle2, Clock, FileText, Rocket, ShieldCheck, UploadCloud, User2, Sparkles } from 'lucide-react';
+import { fetchRecentAudits, fetchMe } from '../services/api';
 
 function initialsFromName(name) {
   const trimmed = (name || '').trim();
@@ -76,6 +76,19 @@ export default function Dashboard() {
         setAuditsLoading(false);
       });
 
+    // Background sync user token quota
+    if (auth?.accessToken) {
+      fetchMe()
+        .then((updatedUser) => {
+          if (cancelled) return;
+          const current = getAuth();
+          if (current && updatedUser) {
+            setAuth({ ...current, user: updatedUser });
+          }
+        })
+        .catch(() => {});
+    }
+
     return () => {
       cancelled = true;
     };
@@ -98,10 +111,16 @@ export default function Dashboard() {
                 <span className="text-white font-extrabold text-xl">{avatarText}</span>
               </div>
               <div>
-                <div className="text-xl font-extrabold text-gray-900">
-                  {user?.full_name ? `Welcome, ${user.full_name}` : 'Welcome back'}
+                <div className="flex items-center gap-3">
+                  <div className="text-xl font-extrabold text-gray-900">
+                    {user?.full_name ? `Welcome, ${user.full_name}` : 'Welcome back'}
+                  </div>
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-200 flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 text-blue-600" />
+                    {user?.plan_type || 'Starter'}
+                  </span>
                 </div>
-                <div className="text-gray-600">
+                <div className="text-gray-600 mt-0.5">
                   {user?.email ? user.email : 'Signed in'} {createdAt ? `• Signed in: ${formatDateTime(createdAt)}` : ''}
                 </div>
               </div>
@@ -204,7 +223,18 @@ export default function Dashboard() {
               </button>
             </div>
 
-            <div className="mt-5 grid md:grid-cols-3 gap-4">
+            <div className="mt-5 grid md:grid-cols-4 gap-4">
+              <div className="p-5 rounded-2xl bg-white/60 border border-white/40">
+                <div className="text-sm text-gray-600">Plan & Tokens</div>
+                <div className="mt-1 font-extrabold text-gray-900">
+                  {user?.plan_type || 'Starter'} ({user?.tokens_used ?? 0}/{user?.tokens_limit ?? 3})
+                </div>
+                {(user?.plan_type || 'Starter').toLowerCase() === 'starter' && (
+                  <button className="text-xs text-blue-700 font-bold hover:underline mt-1 block" onClick={() => navigate('/pricing')}>
+                    Upgrade to unlimited →
+                  </button>
+                )}
+              </div>
               <div className="p-5 rounded-2xl bg-white/60 border border-white/40">
                 <div className="text-sm text-gray-600">User ID</div>
                 <div className="mt-1 font-extrabold text-gray-900 break-all">{user?.id ?? '—'}</div>

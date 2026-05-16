@@ -54,6 +54,15 @@ const Navbar = () => {
             </a>
             {isLoggedIn ? (
               <>
+                {auth?.user && (
+                  <button 
+                    onClick={() => navigate('/pricing')}
+                    className="hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/20 text-xs font-bold text-blue-700 hover:bg-blue-500/20 transition-colors"
+                  >
+                    <Sparkles className="w-4 h-4 text-blue-600" />
+                    <span>{auth.user.plan_type || 'Starter'} Plan ({auth.user.tokens_used ?? 0}/{auth.user.tokens_limit ?? 3} used)</span>
+                  </button>
+                )}
                 <button className="btn-secondary py-3 px-5 sm:py-4 sm:px-8" onClick={() => navigate('/app')}>
                   Dashboard
                 </button>

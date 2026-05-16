@@ -1,9 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import PageShell from '../components/PageShell';
-import { getSelectedPlan, clearSelectedPlan } from '../utils/storage';
+import { getSelectedPlan, clearSelectedPlan, getAuth, setAuth } from '../utils/storage';
 import { navigate } from '../utils/router';
-import { createRazorpayOrder, verifyRazorpayPayment } from '../services/api';
+import { createRazorpayOrder, verifyRazorpayPayment, fetchMe } from '../services/api';
 
 function formatAmount(amount) {
   if (!amount) return '';
@@ -62,6 +62,17 @@ export default function Payment() {
               razorpay_signature: response.razorpay_signature || 'demo_signature',
               plan_name: plan.name
             });
+
+            try {
+              const updatedUser = await fetchMe();
+              const auth = getAuth();
+              if (auth && updatedUser) {
+                setAuth({ ...auth, user: updatedUser });
+              }
+            } catch (e) {
+              console.error('Failed to sync updated profile:', e);
+            }
+
             toast.success('Payment successful!');
             navigate('/payment/success');
           } catch (err) {
