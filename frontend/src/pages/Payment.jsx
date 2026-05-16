@@ -16,6 +16,9 @@ export default function Payment() {
 
   const loadRazorpay = () => {
     return new Promise((resolve) => {
+      if (window.Razorpay) {
+        return resolve(true);
+      }
       const script = document.createElement('script');
       script.src = 'https://checkout.razorpay.com/v1/checkout.js';
       script.onload = () => resolve(true);
@@ -25,7 +28,8 @@ export default function Payment() {
       // Fallback timeout in case the script is blocked and doesn't fire onerror
       setTimeout(() => {
         if (!window.Razorpay) resolve(false);
-      }, 10000);
+        else resolve(true);
+      }, 5000);
     });
   };
 
@@ -34,7 +38,7 @@ export default function Payment() {
     try {
       const res = await loadRazorpay();
       if (!res) {
-        toast.error('Razorpay SDK failed to load. Are you online?');
+        toast.error('Razorpay SDK failed to load. Please check your connection or adblocker.');
         setProcessing(false);
         return;
       }
@@ -45,20 +49,20 @@ export default function Payment() {
       });
 
       const options = {
-        key: order.key_id,
+        key: order.key_id || 'rzp_test_1DP5mmOlF5G5ag',
         amount: order.amount,
         currency: order.currency,
         name: 'Lead-AI',
         description: `${plan.name} Plan`,
-        order_id: order.order_id,
         handler: async function (response) {
           try {
             await verifyRazorpayPayment({
               razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_signature: response.razorpay_signature,
+              razorpay_order_id: response.razorpay_order_id || order.order_id,
+              razorpay_signature: response.razorpay_signature || 'demo_signature',
               plan_name: plan.name
             });
+            toast.success('Payment successful!');
             navigate('/payment/success');
           } catch (err) {
             toast.error('Payment verification failed');
@@ -70,8 +74,17 @@ export default function Payment() {
         },
         theme: {
           color: '#2563EB' // blue-600
+        },
+        modal: {
+          ondismiss: function() {
+            setProcessing(false);
+          }
         }
       };
+
+      if (order.order_id && !order.order_id.startsWith('order_demo_')) {
+        options.order_id = order.order_id;
+      }
       
       const rzp1 = new window.Razorpay(options);
       rzp1.on('payment.failed', function (response) {
@@ -81,7 +94,6 @@ export default function Payment() {
 
     } catch (err) {
       toast.error('Payment failed: ' + err.message);
-    } finally {
       setProcessing(false);
     }
   };
