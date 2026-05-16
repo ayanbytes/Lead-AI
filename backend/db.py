@@ -160,12 +160,14 @@ if DATABASE_URL.startswith("mysql") and not os.getenv("RAILWAY_ENVIRONMENT"):
     except Exception as e:
         print(f"Warning: Could not ensure database exists: {e}")
 
+connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True,
     pool_recycle=300, # Recycle connections after 5 mins to prevent Render connection drops
-    connect_args={}
+    connect_args=connect_args
 )
+
 
 # Basic startup diagnostics for deployed environments (safe; no password logging).
 try:

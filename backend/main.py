@@ -39,31 +39,14 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Manual CORS Middleware - The most reliable way for rotating origins
-@app.middleware("http")
-async def cors_middleware(request, call_next):
-    if request.method == "OPTIONS":
-        response = Response()
-        origin = request.headers.get("origin")
-        if origin:
-            response.headers["Access-Control-Allow-Origin"] = origin
-        else:
-            response.headers["Access-Control-Allow-Origin"] = "*"
-        
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
-        response.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type, Accept, Origin, X-Requested-With"
-        response.headers["Access-Control-Allow-Credentials"] = "true"
-        response.headers["Access-Control-Max-Age"] = "86400"
-        return response
-
-    response = await call_next(request)
-    origin = request.headers.get("origin")
-    if origin:
-        response.headers["Access-Control-Allow-Origin"] = origin
-        response.headers["Access-Control-Allow-Credentials"] = "true"
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
-        response.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type, Accept, Origin, X-Requested-With"
-    return response
+# Standard CORS Middleware - Robust for all ASGI responses, errors, and preflights
+app.add_middleware(
+    CORSMiddleware,
+    allow_origin_regex=".*",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 _agent: LeadResearchAgent | None = None
 
@@ -133,11 +116,17 @@ def _startup():
     Base.metadata.create_all(bind=engine)
     try:
         with engine.connect() as conn:
-            conn.execute(text("ALTER TABLE users ADD COLUMN tokens_used INTEGER DEFAULT 0 NOT NULL"))
-            conn.execute(text("ALTER TABLE users ADD COLUMN tokens_limit INTEGER DEFAULT 3 NOT NULL"))
+            conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS tokens_used INTEGER DEFAULT 0 NOT NULL"))
             conn.commit()
-    except Exception:
-        pass  # Columns already exist in existing DB
+    except Exception as e:
+        print(f"Startup schema check notice (tokens_used): {e}")
+
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS tokens_limit INTEGER DEFAULT 3 NOT NULL"))
+            conn.commit()
+    except Exception as e:
+        print(f"Startup schema check notice (tokens_limit): {e}")
 
 
 # Request Models
