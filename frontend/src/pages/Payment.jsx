@@ -21,6 +21,11 @@ export default function Payment() {
       script.onload = () => resolve(true);
       script.onerror = () => resolve(false);
       document.body.appendChild(script);
+      
+      // Fallback timeout in case the script is blocked and doesn't fire onerror
+      setTimeout(() => {
+        if (!window.Razorpay) resolve(false);
+      }, 10000);
     });
   };
 
