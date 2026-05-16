@@ -39,9 +39,11 @@ const Navbar = () => {
             <a href="#/features" className="text-gray-600 hover:text-blue-600 font-medium transition-colors">
               Features
             </a>
-            <a href="#/pricing" className="text-gray-600 hover:text-blue-600 font-medium transition-colors">
-              Pricing
-            </a>
+            {isLoggedIn && (
+              <a href="#/pricing" className="text-gray-600 hover:text-blue-600 font-medium transition-colors">
+                Pricing
+              </a>
+            )}
           </div>
 
           {/* CTA */}

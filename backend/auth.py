@@ -10,11 +10,15 @@ _pwd_context = CryptContext(
   deprecated="auto",
 )
 
+def _prep_password(password: str) -> str:
+    """Truncate password to 72 bytes to prevent passlib/bcrypt ValueError for long passwords."""
+    return password.encode("utf-8")[:72].decode("utf-8", "ignore")
+
 def hash_password(password: str) -> str:
-    return _pwd_context.hash(password)
+    return _pwd_context.hash(_prep_password(password))
 
 def verify_password(password: str, password_hash: str) -> bool:
-    return _pwd_context.verify(password, password_hash)
+    return _pwd_context.verify(_prep_password(password), password_hash)
 
 
 
