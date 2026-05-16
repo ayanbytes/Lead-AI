@@ -204,6 +204,7 @@ def get_current_user_from_header(
     authorization: str | None = Header(default=None),
 ) -> User:
     if not authorization or not authorization.lower().startswith("bearer "):
+        print(f"[AUTH ERROR] Missing or invalid header: {authorization[:20] if authorization else None}")
         raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
 
     token = authorization.split(" ", 1)[1].strip()
@@ -211,13 +212,16 @@ def get_current_user_from_header(
         payload = jwt.decode(token, _get_jwt_secret(), algorithms=["HS256"])
         subject = payload.get("sub")
         if not subject:
+            print("[AUTH ERROR] Token missing 'sub' claim")
             raise HTTPException(status_code=401, detail="Invalid token")
         user_id = int(subject)
-    except (JWTError, ValueError):
-        raise HTTPException(status_code=401, detail="Invalid token")
+    except Exception as e:
+        print(f"[AUTH ERROR] jwt.decode failed: {str(e)} (secret prefix: {_get_jwt_secret()[:5]})")
+        raise HTTPException(status_code=401, detail=f"Invalid token: {str(e)}")
 
     user = db.query(User).filter(User.id == user_id).first()
     if not user or not user.is_active:
+        print(f"[AUTH ERROR] User ID {user_id} not found or inactive in DB")
         raise HTTPException(status_code=401, detail="User not found or inactive")
     return user
 
