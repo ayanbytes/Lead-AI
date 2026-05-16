@@ -6,23 +6,23 @@ _env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
 load_dotenv(_env_path)
 
 from jose import jwt
-from passlib.context import CryptContext
+import bcrypt
 
-_pwd_context = CryptContext(
-  schemes=["bcrypt", "pbkdf2_sha256"],
-  default="bcrypt",
-  deprecated="auto",
-)
-
-def _prep_password(password: str) -> str:
-    """Truncate password to 72 bytes to prevent passlib/bcrypt ValueError for long passwords."""
-    return password.encode("utf-8")[:72].decode("utf-8", "ignore")
+def _prep_password_bytes(password: str) -> bytes:
+    """Truncate password to 72 bytes to prevent bcrypt ValueError for long passwords."""
+    return password.encode("utf-8")[:72]
 
 def hash_password(password: str) -> str:
-    return _pwd_context.hash(_prep_password(password))
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(_prep_password_bytes(password), salt)
+    return hashed.decode("ascii")
 
 def verify_password(password: str, password_hash: str) -> bool:
-    return _pwd_context.verify(_prep_password(password), password_hash)
+    try:
+        return bcrypt.checkpw(_prep_password_bytes(password), password_hash.encode("ascii"))
+    except Exception as e:
+        print(f"[AUTH ERROR] bcrypt.checkpw failed: {str(e)}")
+        return False
 
 
 
