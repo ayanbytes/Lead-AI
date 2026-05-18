@@ -6,6 +6,7 @@ from starlette.responses import Response
 from pydantic import BaseModel
 from typing import Optional, List
 import os
+import sys
 import pandas as pd
 import time
 from datetime import datetime
@@ -1028,6 +1029,8 @@ def search_companies_endpoint(request: SearchRequest):
 
 
 def _send_email_task(smtp_server, smtp_port, smtp_username, smtp_password, sender_name, reply_to, to_email, subject, body):
+    print(f"[SMTP BACKGROUND] Starting transmission to {to_email} via {smtp_server}:{smtp_port}...")
+    sys.stdout.flush()
     try:
         msg = MIMEMultipart()
         msg['From'] = f"{sender_name} <{smtp_username}>"
@@ -1042,9 +1045,11 @@ def _send_email_task(smtp_server, smtp_port, smtp_username, smtp_password, sende
         server.login(smtp_username, smtp_password)
         server.send_message(msg)
         server.quit()
-        print(f"Background email sent successfully to {to_email}")
+        print(f"[SMTP SUCCESS] Email sent successfully to {to_email}")
+        sys.stdout.flush()
     except Exception as e:
-        print(f"Background email sending error to {to_email}: {e}")
+        print(f"[SMTP ERROR] Failed sending to {to_email}: {e}")
+        sys.stdout.flush()
 
 # Send Email Endpoint
 @app.post("/api/send-email")
@@ -1054,10 +1059,11 @@ async def send_outreach_email(
     current_user: User = Depends(get_optional_user_from_header)
 ):
     # Use global SMTP settings
-    smtp_server = os.getenv("SMTP_SERVER")
-    smtp_port = int(os.getenv("SMTP_PORT", 587))
-    smtp_username = os.getenv("SMTP_USERNAME")
-    smtp_password = os.getenv("SMTP_PASSWORD")
+    smtp_server = os.getenv("SMTP_SERVER", "").strip("\"' \t\r\n")
+    smtp_port_raw = os.getenv("SMTP_PORT", "587").strip("\"' \t\r\n")
+    smtp_port = int(smtp_port_raw) if smtp_port_raw.isdigit() else 587
+    smtp_username = os.getenv("SMTP_USERNAME", "").strip("\"' \t\r\n")
+    smtp_password = os.getenv("SMTP_PASSWORD", "").strip("\"' \t\r\n")
 
     if not smtp_server or not smtp_username or not smtp_password:
         raise HTTPException(status_code=500, detail="System SMTP not configured")
