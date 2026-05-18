@@ -1,5 +1,5 @@
 import razorpay
-from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
+from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from starlette.responses import Response
@@ -1027,10 +1027,30 @@ def search_companies_endpoint(request: SearchRequest):
         raise HTTPException(status_code=500, detail=f"Search failed: {user_error}")
 
 
+def _send_email_task(smtp_server, smtp_port, smtp_username, smtp_password, sender_name, reply_to, to_email, subject, body):
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = f"{sender_name} <{smtp_username}>"
+        msg['To'] = to_email
+        msg['Subject'] = subject
+        msg['Reply-To'] = reply_to
+
+        msg.attach(MIMEText(body, 'plain'))
+
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()
+        server.login(smtp_username, smtp_password)
+        server.send_message(msg)
+        server.quit()
+        print(f"Background email sent successfully to {to_email}")
+    except Exception as e:
+        print(f"Background email sending error to {to_email}: {e}")
+
 # Send Email Endpoint
 @app.post("/api/send-email")
 async def send_outreach_email(
     request: SendEmailRequest,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_optional_user_from_header)
 ):
     # Use global SMTP settings
@@ -1050,29 +1070,23 @@ async def send_outreach_email(
             detail=f"Email rate limit reached. You can send up to {_EMAIL_RATE_LIMIT} emails per hour."
         )
 
-    try:
-        msg = MIMEMultipart()
-        # Use logged-in user info if available, otherwise fall back to SMTP account
-        sender_name = current_user.full_name if current_user else "Lead Magnet"
-        reply_to = current_user.email if current_user else smtp_username
+    sender_name = current_user.full_name if current_user else "Lead Magnet"
+    reply_to = current_user.email if current_user else smtp_username
 
-        msg['From'] = f"{sender_name} <{smtp_username}>"
-        msg['To'] = request.to_email
-        msg['Subject'] = request.subject
-        msg['Reply-To'] = reply_to
+    background_tasks.add_task(
+        _send_email_task,
+        smtp_server,
+        smtp_port,
+        smtp_username,
+        smtp_password,
+        sender_name,
+        reply_to,
+        request.to_email,
+        request.subject,
+        request.body
+    )
 
-        msg.attach(MIMEText(request.body, 'plain'))
-
-        server = smtplib.SMTP(smtp_server, smtp_port)
-        server.starttls()
-        server.login(smtp_username, smtp_password)
-        server.send_message(msg)
-        server.quit()
-
-        return {"message": f"Email sent successfully to {request.to_email}"}
-    except Exception as e:
-        print(f"Email sending error: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
+    return {"message": f"Email queued successfully to {request.to_email}"}
 
 razorpay_client = razorpay.Client(
     auth=(os.getenv("RAZORPAY_KEY_ID", ""), os.getenv("RAZORPAY_KEY_SECRET", ""))
