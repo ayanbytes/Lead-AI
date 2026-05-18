@@ -1044,9 +1044,18 @@ async def send_outreach_email(
     smtp_port = int(smtp_port_raw) if smtp_port_raw.isdigit() else 587
     smtp_username = os.getenv("SMTP_USERNAME", "").strip("\"' \t\r\n")
     smtp_password = os.getenv("SMTP_PASSWORD", "").strip("\"' \t\r\n")
+    smtp_from_email = os.getenv("SMTP_FROM_EMAIL", "").strip("\"' \t\r\n")
 
     if not smtp_server or not smtp_username or not smtp_password:
         raise HTTPException(status_code=500, detail="System SMTP not configured")
+
+    if not smtp_from_email:
+        if "@" in smtp_username:
+            smtp_from_email = smtp_username
+        elif current_user and "@" in current_user.email:
+            smtp_from_email = current_user.email
+        else:
+            smtp_from_email = "noreply@lead-ai.com"
 
     # Rate limit: max 5 emails per hour per user (prevents abuse)
     rate_id = str(current_user.id) if current_user else "anonymous"
@@ -1057,14 +1066,14 @@ async def send_outreach_email(
         )
 
     sender_name = current_user.full_name if current_user else "Lead Magnet"
-    reply_to = current_user.email if current_user else smtp_username
+    reply_to = current_user.email if current_user else smtp_from_email
 
-    print(f"[SMTP SYNCHRONOUS] Connecting to {smtp_server}:{smtp_port} for user {smtp_username}...")
+    print(f"[SMTP SYNCHRONOUS] Connecting to {smtp_server}:{smtp_port} for sender {smtp_from_email}...")
     sys.stdout.flush()
 
     try:
         msg = MIMEMultipart()
-        msg['From'] = f"{sender_name} <{smtp_username}>"
+        msg['From'] = f"{sender_name} <{smtp_from_email}>"
         msg['To'] = request.to_email
         msg['Subject'] = request.subject
         msg['Reply-To'] = reply_to
