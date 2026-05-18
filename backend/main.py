@@ -1071,9 +1071,15 @@ async def send_outreach_email(
 
         msg.attach(MIMEText(request.body, 'plain'))
 
-        server = smtplib.SMTP(smtp_server, smtp_port, timeout=10)
-        server.starttls()
-        server.login(smtp_username, smtp_password)
+        # Force IPv4 binding ("0.0.0.0", 0) to bypass Render's IPv6 Network is Unreachable error
+        if smtp_port == 465:
+            server = smtplib.SMTP_SSL(smtp_server, smtp_port, timeout=15, source_address=("0.0.0.0", 0))
+            server.login(smtp_username, smtp_password)
+        else:
+            server = smtplib.SMTP(smtp_server, smtp_port, timeout=15, source_address=("0.0.0.0", 0))
+            server.starttls()
+            server.login(smtp_username, smtp_password)
+
         server.send_message(msg)
         server.quit()
         print(f"[SMTP SUCCESS] Email sent successfully to {request.to_email}")
