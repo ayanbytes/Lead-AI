@@ -670,10 +670,13 @@ async def analyze_company(
 
         # Run analysis (hits Tavily → DuckDuckGo fallback → Groq)
         if current_user and current_user.plan_type.lower() == "starter":
+            if current_user.tokens_limit <= 10:  # Auto-migrate legacy audit count to token limit
+                current_user.tokens_limit = 15000
+                db.commit()
             if current_user.tokens_used >= current_user.tokens_limit:
                 raise HTTPException(
                     status_code=403,
-                    detail=f"Free plan limit reached ({current_user.tokens_used}/{current_user.tokens_limit} company analyses used). Please upgrade to Pro or Team to unlock unlimited analyses."
+                    detail=f"Free plan token limit reached ({current_user.tokens_used:,}/{current_user.tokens_limit:,} API tokens used). Please upgrade to Pro or Team to unlock more tokens."
                 )
 
         result = get_agent().analyze_company(
@@ -688,8 +691,9 @@ async def analyze_company(
         # Increment quota only on successful analysis
         if result.get("status") == "Success":
             _set_cached_analysis(ck, result)
+            tokens_consumed = result.get("tokens_used", 2500)
             if current_user and current_user.plan_type.lower() == "starter":
-                current_user.tokens_used += 1
+                current_user.tokens_used += tokens_consumed
                 db.commit()
 
         # Persist audit only for authenticated users
@@ -1160,7 +1164,7 @@ def verify_payment(request: VerifyPaymentRequest, db: Session = Depends(get_db),
     is_pro = "pro" in plan_name_lower
     is_team = "team" in plan_name_lower
     is_pro_or_team = is_pro or is_team
-    limit = 1000 if is_pro else 5000
+    limit = 500000 if is_pro else 2000000
 
     if request.razorpay_order_id.startswith("order_demo_"):
         current_user.razorpay_payment_id = request.razorpay_payment_id

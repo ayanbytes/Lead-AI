@@ -217,10 +217,14 @@ TONE GUIDELINES:
                 "industry": industry
             })
 
+            # Approximate token usage (standard 4 chars per token rule across prompt + search + output)
+            approx_tokens = max(100, len(str(result)) // 4)
+
             parsed = self._parse_output(result["output"])
             parsed['company_name'] = company_name
             parsed['industry'] = industry
             parsed['status'] = 'Success'
+            parsed['tokens_used'] = approx_tokens
 
             # LinkedIn integration and email discovery
             if include_linkedin:
