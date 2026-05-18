@@ -671,7 +671,7 @@ async def analyze_company(
         # Run analysis (hits Tavily → DuckDuckGo fallback → Groq)
         if current_user and current_user.plan_type.lower() == "starter":
             if current_user.tokens_limit <= 10:  # Auto-migrate legacy audit count to token limit
-                current_user.tokens_limit = 15000
+                current_user.tokens_limit = 5000
                 db.commit()
             if current_user.tokens_used >= current_user.tokens_limit:
                 raise HTTPException(
