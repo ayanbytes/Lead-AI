@@ -19,7 +19,7 @@ load_dotenv()
 
 # ─── Free search helpers ──────────────────────────────────────────────────────
 
-def _duckduckgo_search(query: str, max_results: int = 5) -> str:
+def _duckduckgo_search(query: str, max_results: int = 3) -> str:
     """
     Completely free web search via DuckDuckGo — no API key, no rate limit.
     Used as automatic fallback when Tavily is unavailable or rate-limited.
@@ -36,7 +36,7 @@ def _duckduckgo_search(query: str, max_results: int = 5) -> str:
             body = r.get("body", "")
             href = r.get("href", "")
             snippets.append(f"[{title}] {body} ({href})")
-        return "\n".join(snippets)[:3000]
+        return "\n".join(snippets)[:1200]
     except Exception as e:
         return f"DuckDuckGo search failed: {e}"
 
@@ -49,9 +49,9 @@ def _wikipedia_lookup(company_name: str) -> str:
     try:
         import wikipedia
         wikipedia.set_lang("en")
-        # Try to get a summary (first 500 chars)
-        summary = wikipedia.summary(company_name, sentences=3, auto_suggest=True)
-        return f"Wikipedia: {summary}"
+        # Try to get a summary (first 300 chars)
+        summary = wikipedia.summary(company_name, sentences=2, auto_suggest=True)
+        return f"Wikipedia: {summary[:400]}"
     except Exception:
         return ""
 
@@ -64,7 +64,7 @@ def _safe_search(tavily_tool, query: str) -> str:
     result = ""
     # 1. Try Tavily
     try:
-        result = str(tavily_tool.run(query))[:3000]
+        result = str(tavily_tool.run(query))[:1500]
     except Exception as tavily_err:
         print(f"[Search] Tavily failed ({tavily_err}), switching to DuckDuckGo (free)…")
         result = _duckduckgo_search(query)
@@ -78,7 +78,7 @@ def _safe_search(tavily_tool, query: str) -> str:
     except Exception:
         pass
 
-    return result[:3500] + "… [results truncated to save tokens]"
+    return result[:1800] + "… [results truncated to save tokens]"
 
 
 # ─── Main Agent ───────────────────────────────────────────────────────────────
@@ -194,7 +194,7 @@ TONE GUIDELINES:
         ])
 
         agent = create_tool_calling_agent(self.llm, self.tools, prompt)
-        return AgentExecutor(agent=agent, tools=self.tools, verbose=False, handle_parsing_errors=True)
+        return AgentExecutor(agent=agent, tools=self.tools, verbose=False, handle_parsing_errors=True, max_iterations=2)
 
     def analyze_company(self, company_name, industry="General", agency_name=None,
                         include_linkedin=False, include_competitors=False, website=None):
@@ -282,13 +282,13 @@ TONE GUIDELINES:
                 raw_results = self.tavily_tool.run(
                     f"list of companies related to {query} with their official websites"
                 )
-                search_results = str(raw_results)[:4000]
+                search_results = str(raw_results)[:1800]
             except Exception as tavily_err:
                 print(f"[Discovery] Tavily failed ({tavily_err}), switching to DuckDuckGo (free)…")
                 search_results = _duckduckgo_search(
                     f"list of companies related to {query} with official websites",
-                    max_results=8
-                )
+                    max_results=5
+                )[:1800]
 
             # 2. Ask LLM to extract structured company data
             extract_prompt = f"""You are a data extraction expert. Your ONLY task is to return a JSON list of companies.

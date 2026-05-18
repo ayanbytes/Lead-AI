@@ -26,7 +26,7 @@ class LinkedInAgent:
             search_query = f"{company_name} CEO CTO founder LinkedIn 2024"
             results = self.search.invoke(search_query)
             
-            context = "\n".join([r.get('content', '')[:500] for r in results])
+            context = "\n".join([r.get('content', '')[:400] for r in results])[:1200]
             
             prompt = f"""
 Based on the following search results, find the current CEO, CTO, or Founder of {company_name}.
@@ -66,7 +66,7 @@ Do not include titles, positions, or any other information.
             company_query = f"{company_name} contact email address \"@{(domain if domain else company_name.lower().replace(' ', ''))}\""
             results = self.search.invoke(company_query)
             
-            context = "\n".join([r.get('content', '')[:500] for r in results])
+            context = "\n".join([r.get('content', '')[:400] for r in results])[:1200]
             
             prompt = f"""
             Based on the search results, find the most likely official contact email for {company_name}.
@@ -84,7 +84,7 @@ Do not include titles, positions, or any other information.
                 lead_query = f"{lead_name} {company_name} email address"
                 lead_results = self.search.invoke(lead_query)
                 
-                lead_context = "\n".join([r.get('content', '')[:500] for r in lead_results])
+                lead_context = "\n".join([r.get('content', '')[:400] for r in lead_results])[:1200]
                 
                 lead_prompt = f"""
                 Find the email address for {lead_name} at {company_name}.
@@ -112,7 +112,7 @@ class CompetitorAnalyzer:
             api_key=os.getenv("GROQ_API_KEY")
         )
         self.search = TavilySearchResults(
-            k=5,
+            k=3,
             api_key=os.getenv("TAVILY_API_KEY")
         )
     
@@ -124,7 +124,7 @@ class CompetitorAnalyzer:
             search_query = f"{company_name} competitors {industry} comparison features"
             search_results = self.search.invoke(search_query)
             
-            context = "\n".join([r.get('content', '')[:800] for r in search_results])
+            context = "\n".join([r.get('content', '')[:500] for r in search_results])[:1500]
             
             prompt = f"""
 Based on the market research below, identify the top 3 competitors of {company_name} in the {industry} industry.
