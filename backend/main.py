@@ -1032,34 +1032,10 @@ def search_companies_endpoint(request: SearchRequest):
         raise HTTPException(status_code=500, detail=f"Search failed: {user_error}")
 
 
-def _send_email_task(smtp_server, smtp_port, smtp_username, smtp_password, sender_name, reply_to, to_email, subject, body):
-    print(f"[SMTP BACKGROUND] Starting transmission to {to_email} via {smtp_server}:{smtp_port}...")
-    sys.stdout.flush()
-    try:
-        msg = MIMEMultipart()
-        msg['From'] = f"{sender_name} <{smtp_username}>"
-        msg['To'] = to_email
-        msg['Subject'] = subject
-        msg['Reply-To'] = reply_to
-
-        msg.attach(MIMEText(body, 'plain'))
-
-        server = smtplib.SMTP(smtp_server, smtp_port)
-        server.starttls()
-        server.login(smtp_username, smtp_password)
-        server.send_message(msg)
-        server.quit()
-        print(f"[SMTP SUCCESS] Email sent successfully to {to_email}")
-        sys.stdout.flush()
-    except Exception as e:
-        print(f"[SMTP ERROR] Failed sending to {to_email}: {e}")
-        sys.stdout.flush()
-
 # Send Email Endpoint
 @app.post("/api/send-email")
 async def send_outreach_email(
     request: SendEmailRequest,
-    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_optional_user_from_header)
 ):
     # Use global SMTP settings
@@ -1083,20 +1059,34 @@ async def send_outreach_email(
     sender_name = current_user.full_name if current_user else "Lead Magnet"
     reply_to = current_user.email if current_user else smtp_username
 
-    background_tasks.add_task(
-        _send_email_task,
-        smtp_server,
-        smtp_port,
-        smtp_username,
-        smtp_password,
-        sender_name,
-        reply_to,
-        request.to_email,
-        request.subject,
-        request.body
-    )
+    print(f"[SMTP SYNCHRONOUS] Connecting to {smtp_server}:{smtp_port} for user {smtp_username}...")
+    sys.stdout.flush()
 
-    return {"message": f"Email queued successfully to {request.to_email}"}
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = f"{sender_name} <{smtp_username}>"
+        msg['To'] = request.to_email
+        msg['Subject'] = request.subject
+        msg['Reply-To'] = reply_to
+
+        msg.attach(MIMEText(request.body, 'plain'))
+
+        server = smtplib.SMTP(smtp_server, smtp_port, timeout=10)
+        server.starttls()
+        server.login(smtp_username, smtp_password)
+        server.send_message(msg)
+        server.quit()
+        print(f"[SMTP SUCCESS] Email sent successfully to {request.to_email}")
+        sys.stdout.flush()
+        return {"message": f"Email sent successfully to {request.to_email}"}
+    except smtplib.SMTPAuthenticationError as auth_err:
+        print(f"[SMTP AUTH ERROR] {auth_err}")
+        sys.stdout.flush()
+        raise HTTPException(status_code=500, detail="SMTP Authentication failed. If using Gmail, please ensure you are using a 16-digit App Password.")
+    except Exception as e:
+        print(f"[SMTP ERROR] {e}")
+        sys.stdout.flush()
+        raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
 
 razorpay_client = razorpay.Client(
     auth=(os.getenv("RAZORPAY_KEY_ID", ""), os.getenv("RAZORPAY_KEY_SECRET", ""))
