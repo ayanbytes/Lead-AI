@@ -28,7 +28,8 @@ def verify_password(password: str, password_hash: str) -> bool:
 
 def _get_secret_key() -> str:
   secret = os.getenv("JWT_SECRET", "change-me-to-a-long-random-string-leadai-2026")
-  return secret
+  return secret.strip("\"' \t\r\n")
+
 
 
 def create_access_token(*, subject: str, expires_in_minutes: int) -> str:
