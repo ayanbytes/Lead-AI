@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, Github, Twitter } from 'lucide-react';
+import { Sparkles, Github, Twitter, Target } from 'lucide-react';
 import { navigate } from '../utils/router';
 import { clearAuth } from '../utils/storage';
 import { useAuth } from '../utils/useAuth';
@@ -20,14 +20,14 @@ const Navbar = () => {
           <button
             type="button"
             onClick={() => navigate('/')}
-            className="flex items-center gap-3 text-left"
+            className="flex items-center gap-3 text-left group"
           >
-            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-xl flex items-center justify-center">
-              <Sparkles className="w-7 h-7 text-white" />
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/30 border border-white/20 group-hover:scale-105 transition-transform">
+              <Target className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
             </div>
             <div>
               <h1 className="text-xl sm:text-2xl font-bold gradient-text">Lead AI</h1>
-              <p className="hidden sm:block text-xs text-gray-500">Sales Automation Platform</p>
+              <p className="hidden sm:block text-xs text-gray-500 font-medium">Sales Automation Platform</p>
             </div>
           </button>
 

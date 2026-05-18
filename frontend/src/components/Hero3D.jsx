@@ -54,9 +54,9 @@ const Hero3D = () => {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8 }}
           >
-            <div className="inline-flex items-center gap-2 bg-blue-100 text-blue-700 px-4 py-2 rounded-full mb-6">
-              <Sparkles className="w-4 h-4" />
-              {/* <spGroqan className="text-sm font-semibold">Powered by  AI</span> */}
+            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600/10 to-indigo-600/10 border border-blue-500/20 text-blue-700 px-4 py-2 rounded-full mb-6 shadow-sm">
+              <Target className="w-4 h-4 text-blue-600 animate-pulse" />
+              <span className="text-sm font-semibold tracking-wide">Next-Gen AI Lead Generation</span>
             </div>
 
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6 leading-tight">
