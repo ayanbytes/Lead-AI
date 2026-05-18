@@ -37,7 +37,7 @@ function AnimatedSphere() {
 const Hero3D = () => {
   const isLoggedIn = Boolean(getAuth()?.accessToken);
   return (
-    <div className="relative h-[720px] sm:h-[650px] lg:h-[600px] overflow-hidden">
+    <div className="relative min-h-[720px] sm:min-h-[650px] lg:min-h-[680px] py-12 lg:py-16 overflow-hidden flex items-center">
       {/* Gradient Background */}
       <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-cyan-50 to-blue-100" />
       
@@ -54,24 +54,24 @@ const Hero3D = () => {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8 }}
           >
-            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600/10 to-indigo-600/10 border border-blue-500/20 text-blue-700 px-4 py-2 rounded-full mb-6 shadow-sm">
+            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600/10 to-indigo-600/10 border border-blue-500/20 text-blue-700 px-4 py-2 rounded-full mb-4 sm:mb-6 shadow-sm">
               <Target className="w-4 h-4 text-blue-600 animate-pulse" />
               <span className="text-sm font-semibold tracking-wide">Next-Gen AI Lead Generation</span>
             </div>
 
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6 leading-tight">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 leading-tight">
               Transform Cold Outreach Into
               <span className="gradient-text block mt-2">
                 Value-Driven Conversations
               </span>
             </h1>
 
-            <p className="text-lg sm:text-xl text-gray-600 mb-8 leading-relaxed">
+            <p className="text-lg sm:text-xl text-gray-600 mb-6 sm:mb-8 leading-relaxed">
               Generate hyper-personalized technical audits and outreach emails in seconds. 
               Powered by advanced AI to help IT agencies close more deals.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 mb-12">
+            <div className="flex flex-col sm:flex-row gap-4 mb-8 sm:mb-10">
               {isLoggedIn ? (
                 <button className="btn-primary flex items-center justify-center gap-2 py-3 px-6 sm:py-4 sm:px-8 w-full sm:w-auto" onClick={() => navigate('/app')}>
                   <Zap className="w-5 h-5" />
@@ -102,10 +102,10 @@ const Hero3D = () => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 + 0.5 }}
-                  className="flex items-center gap-3"
+                  className="flex items-center gap-3 bg-white/50 backdrop-blur-sm py-2 px-3 sm:py-2.5 sm:px-4 rounded-xl border border-white/60 shadow-sm"
                 >
-                  <span className="text-2xl">{feature.icon}</span>
-                  <span className="text-gray-700 font-medium">{feature.text}</span>
+                  <span className="text-xl sm:text-2xl flex-shrink-0">{feature.icon}</span>
+                  <span className="text-gray-800 font-semibold text-sm sm:text-base">{feature.text}</span>
                 </motion.div>
               ))}
             </div>
