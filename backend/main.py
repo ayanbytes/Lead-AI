@@ -1080,11 +1080,14 @@ razorpay_client = razorpay.Client(
 
 @app.post("/api/payment/create-order")
 def create_razorpay_order(request: CheckoutRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user_from_header)):
-    prices = {
-        "Pro": 4900,
-        "Team": 12900
-    }
-    amount = prices.get(request.plan_name, 0)
+    plan_name_lower = request.plan_name.lower()
+    if "pro" in plan_name_lower:
+        amount = 4900
+    elif "team" in plan_name_lower:
+        amount = 12900
+    else:
+        amount = 0
+
     if amount == 0:
         raise HTTPException(status_code=400, detail="Invalid plan or free plan selected")
 
@@ -1133,8 +1136,11 @@ def create_razorpay_order(request: CheckoutRequest, db: Session = Depends(get_db
 
 @app.post("/api/payment/verify")
 def verify_payment(request: VerifyPaymentRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user_from_header)):
-    is_pro_or_team = request.plan_name.lower() in ["pro", "team"]
-    limit = 1000 if request.plan_name.lower() == "pro" else 5000
+    plan_name_lower = request.plan_name.lower()
+    is_pro = "pro" in plan_name_lower
+    is_team = "team" in plan_name_lower
+    is_pro_or_team = is_pro or is_team
+    limit = 1000 if is_pro else 5000
 
     if request.razorpay_order_id.startswith("order_demo_"):
         current_user.razorpay_payment_id = request.razorpay_payment_id
