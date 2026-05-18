@@ -7,7 +7,7 @@ import ResultsDisplay from './ResultsDisplay';
 import { analyzeCompany, fetchMe } from '../services/api';
 import { getAuth, setAuth } from '../utils/storage';
 
-const SingleAnalysis = ({ updateStats }) => {
+const SingleAnalysis = ({ updateStats, onUpgradeRequired }) => {
   const [formData, setFormData] = useState({
     companyName: '',
     industry: 'General',
@@ -76,7 +76,11 @@ const SingleAnalysis = ({ updateStats }) => {
           .catch(() => {});
       }
     } catch (error) {
-      toast.error(error.message || 'Analysis failed. Please try again.');
+      if (error.status === 403 || error.message?.toLowerCase().includes('limit') || error.message?.toLowerCase().includes('upgrade') || error.message?.toLowerCase().includes('premium')) {
+        onUpgradeRequired?.(error.message);
+      } else {
+        toast.error(error.message || 'Analysis failed. Please try again.');
+      }
       console.error('Analysis error:', error);
     } finally {
       setLoading(false);

@@ -9,7 +9,7 @@ import toast from 'react-hot-toast';
 import { analyzeBulk, exportCSV } from '../services/api';
 import EmailModal from './EmailModal';
 
-const BulkAnalysis = ({ updateStats }) => {
+const BulkAnalysis = ({ updateStats, onUpgradeRequired }) => {
   const [file, setFile] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [results, setResults] = useState(null);
@@ -71,7 +71,11 @@ const BulkAnalysis = ({ updateStats }) => {
       }));
     } catch (error) {
       clearInterval(progressInterval);
-      toast.error(error.message || 'Bulk processing failed');
+      if (error.status === 403 || error.message?.toLowerCase().includes('premium') || error.message?.toLowerCase().includes('upgrade') || error.message?.toLowerCase().includes('limit')) {
+        onUpgradeRequired?.(error.message);
+      } else {
+        toast.error(error.message || 'Bulk processing failed');
+      }
     } finally {
       setProcessing(false);
     }

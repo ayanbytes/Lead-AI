@@ -713,6 +713,8 @@ async def analyze_company(
 
         return JSONResponse(content=result)
 
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Analysis error: {e}")
         raise HTTPException(

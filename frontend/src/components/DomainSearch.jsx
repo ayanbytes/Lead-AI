@@ -6,7 +6,7 @@ import { searchCompanies, analyzeCompany } from '../services/api';
 import LoadingAnimation from './LoadingAnimation';
 import ResultsDisplay from './ResultsDisplay';
 
-const DomainSearch = ({ updateStats }) => {
+const DomainSearch = ({ updateStats, onUpgradeRequired }) => {
   const [query, setQuery] = useState('');
   const [searching, setSearching] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
@@ -35,7 +35,11 @@ const DomainSearch = ({ updateStats }) => {
         toast.success(`Found ${data.companies.length} potential leads!`);
       }
     } catch (error) {
-      toast.error(error.message || 'Search failed');
+      if (error.status === 403 || error.message?.toLowerCase().includes('premium') || error.message?.toLowerCase().includes('upgrade') || error.message?.toLowerCase().includes('limit')) {
+        onUpgradeRequired?.(error.message);
+      } else {
+        toast.error(error.message || 'Search failed');
+      }
     } finally {
       setSearching(false);
     }
@@ -73,7 +77,11 @@ const DomainSearch = ({ updateStats }) => {
         }));
       }
     } catch (error) {
-      toast.error(error.message || 'Analysis failed');
+      if (error.status === 403 || error.message?.toLowerCase().includes('premium') || error.message?.toLowerCase().includes('upgrade') || error.message?.toLowerCase().includes('limit')) {
+        onUpgradeRequired?.(error.message);
+      } else {
+        toast.error(error.message || 'Analysis failed');
+      }
     } finally {
       setAnalyzing(false);
     }

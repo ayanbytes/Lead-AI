@@ -45,7 +45,9 @@ export const searchCompanies = async (query) => {
     const response = await api.post('/api/search-companies', { query });
     return response.data;
   } catch (error) {
-    throw new Error(error.response?.data?.detail || 'Search failed');
+    const err = new Error(error.response?.data?.detail || 'Search failed');
+    err.status = error.response?.status || 500;
+    throw err;
   }
 };
 
@@ -61,7 +63,9 @@ export const analyzeCompany = async (formData) => {
     });
     return response.data;
   } catch (error) {
-    throw new Error(error.response?.data?.detail || 'Analysis failed');
+    const err = new Error(error.response?.data?.detail || 'Analysis failed');
+    err.status = error.response?.status || 500;
+    throw err;
   }
 };
 
@@ -148,7 +152,9 @@ export const analyzeBulk = async (file) => {
     });
     return response.data;
   } catch (error) {
-    throw new Error(error.response?.data?.detail || 'Bulk analysis failed');
+    const err = new Error(error.response?.data?.detail || 'Bulk analysis failed');
+    err.status = error.response?.status || 500;
+    throw err;
   }
 };
 

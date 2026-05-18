@@ -27,6 +27,7 @@ import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentCancel from './pages/PaymentCancel';
 import AuditDetail from './pages/AuditDetail';
 import AuditHistory from './pages/AuditHistory';
+import UpgradeModal from './components/UpgradeModal';
 
 function App() {
   const route = useHashRoute();
@@ -42,6 +43,13 @@ function App() {
     companiesProcessed: 0,
     timesSaved: 0
   });
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
+  const [upgradeMessage, setUpgradeMessage] = useState('');
+
+  const handleUpgradeRequired = (msg) => {
+    setUpgradeMessage(msg);
+    setUpgradeModalOpen(true);
+  };
 
   useEffect(() => {
     if (route.includes('?tab=discovery')) setActiveTab('discovery');
@@ -214,13 +222,19 @@ function App() {
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.3 }}
               >
-                {activeTab === 'single' && <SingleAnalysis updateStats={setStats} />}
-                {activeTab === 'discovery' && <DomainSearch updateStats={setStats} />}
-                {activeTab === 'bulk' && <BulkAnalysis updateStats={setStats} />}
+                {activeTab === 'single' && <SingleAnalysis updateStats={setStats} onUpgradeRequired={handleUpgradeRequired} />}
+                {activeTab === 'discovery' && <DomainSearch updateStats={setStats} onUpgradeRequired={handleUpgradeRequired} />}
+                {activeTab === 'bulk' && <BulkAnalysis updateStats={setStats} onUpgradeRequired={handleUpgradeRequired} />}
                 {activeTab === 'settings' && <SettingsPanel />}
               </motion.div>
             </AnimatePresence>
           </div>
+
+          <UpgradeModal
+            isOpen={upgradeModalOpen}
+            onClose={() => setUpgradeModalOpen(false)}
+            message={upgradeMessage}
+          />
         </>
       )}
 
