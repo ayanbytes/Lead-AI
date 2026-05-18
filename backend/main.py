@@ -1071,12 +1071,11 @@ async def send_outreach_email(
 
         msg.attach(MIMEText(request.body, 'plain'))
 
-        # Force IPv4 binding ("0.0.0.0", 0) to bypass Render's IPv6 Network is Unreachable error
         if smtp_port == 465:
-            server = smtplib.SMTP_SSL(smtp_server, smtp_port, timeout=15, source_address=("0.0.0.0", 0))
+            server = smtplib.SMTP_SSL(smtp_server, smtp_port, timeout=15)
             server.login(smtp_username, smtp_password)
         else:
-            server = smtplib.SMTP(smtp_server, smtp_port, timeout=15, source_address=("0.0.0.0", 0))
+            server = smtplib.SMTP(smtp_server, smtp_port, timeout=15)
             server.starttls()
             server.login(smtp_username, smtp_password)
 
@@ -1090,9 +1089,15 @@ async def send_outreach_email(
         sys.stdout.flush()
         raise HTTPException(status_code=500, detail="SMTP Authentication failed. If using Gmail, please ensure you are using a 16-digit App Password.")
     except Exception as e:
-        print(f"[SMTP ERROR] {e}")
+        err_str = str(e)
+        print(f"[SMTP ERROR] {err_str}")
         sys.stdout.flush()
-        raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
+        if "101" in err_str or "unreachable" in err_str.lower() or "timeout" in err_str.lower():
+            raise HTTPException(
+                status_code=500,
+                detail="Outbound SMTP connection blocked by Render Free Tier (Network is unreachable on port 25/465/587). To send email, please configure an SMTP provider that supports port 2525 (e.g. Brevo, Mailgun, SendGrid) or upgrade your Render account."
+            )
+        raise HTTPException(status_code=500, detail=f"Failed to send email: {err_str}")
 
 razorpay_client = razorpay.Client(
     auth=(os.getenv("RAZORPAY_KEY_ID", ""), os.getenv("RAZORPAY_KEY_SECRET", ""))
