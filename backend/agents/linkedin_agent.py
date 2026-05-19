@@ -1,10 +1,86 @@
 import os
+import json
+import ast
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain_core.prompts import PromptTemplate
 
 load_dotenv()
+
+def _duckduckgo_search(query: str, max_results: int = 3) -> list:
+    """
+    Completely free web search via DuckDuckGo.
+    Returns a list of dicts with 'content' and 'url' keys.
+    """
+    try:
+        from duckduckgo_search import DDGS
+        with DDGS() as ddgs:
+            results = list(ddgs.text(query, max_results=max_results))
+        if not results:
+            return []
+        
+        parsed = []
+        for r in results:
+            title = r.get("title", "")
+            body = r.get("body", "")
+            href = r.get("href", "")
+            parsed.append({
+                "content": f"[{title}] {body}",
+                "url": href
+            })
+        return parsed
+    except Exception as e:
+        print(f"DuckDuckGo search fallback failed: {e}")
+        return []
+
+def _safe_search(tavily_tool, query: str, max_results: int = 3) -> list:
+    """
+    Try Tavily first, fallback to DuckDuckGo automatically.
+    Always returns a list of dictionaries with a 'content' key.
+    """
+    results = None
+    # 1. Try Tavily
+    try:
+        raw_res = tavily_tool.invoke(query)
+        if isinstance(raw_res, list):
+            results = raw_res
+        elif isinstance(raw_res, str):
+            # Check if it's an error message or not a valid JSON/list representation
+            if "error" in raw_res.lower() or "httperror" in raw_res.lower() or "exception" in raw_res.lower():
+                print(f"[Search] Tavily returned error string: {raw_res}, switching to DuckDuckGo...")
+            else:
+                try:
+                    parsed = json.loads(raw_res)
+                    if isinstance(parsed, list):
+                        results = parsed
+                except Exception:
+                    try:
+                        parsed = ast.literal_eval(raw_res)
+                        if isinstance(parsed, list):
+                            results = parsed
+                    except Exception:
+                        pass
+    except Exception as e:
+        print(f"[Search] Tavily failed with exception ({e}), switching to DuckDuckGo...")
+
+    # 2. Fallback to DuckDuckGo if Tavily failed or returned no results or an error
+    if not results:
+        results = _duckduckgo_search(query, max_results=max_results)
+
+    # 3. Final sanitization: ensure every item in the list is a dictionary and has a 'content' key
+    sanitized = []
+    if isinstance(results, list):
+        for item in results:
+            if isinstance(item, dict):
+                sanitized.append(item)
+            elif isinstance(item, str):
+                sanitized.append({"content": item})
+    elif isinstance(results, str):
+        sanitized.append({"content": results})
+        
+    return sanitized
+
 
 class LinkedInAgent:
     def __init__(self):
@@ -24,7 +100,7 @@ class LinkedInAgent:
         """
         try:
             search_query = f"{company_name} CEO CTO founder LinkedIn 2024"
-            results = self.search.invoke(search_query)
+            results = _safe_search(self.search, search_query)
             
             context = "\n".join([r.get('content', '')[:400] for r in results])[:1200]
             
@@ -64,7 +140,7 @@ Do not include titles, positions, or any other information.
         try:
             # Search for company emails
             company_query = f"{company_name} contact email address \"@{(domain if domain else company_name.lower().replace(' ', ''))}\""
-            results = self.search.invoke(company_query)
+            results = _safe_search(self.search, company_query)
             
             context = "\n".join([r.get('content', '')[:400] for r in results])[:1200]
             
@@ -82,7 +158,7 @@ Do not include titles, positions, or any other information.
             # Search for lead email
             if lead_name and lead_name != "Decision Maker":
                 lead_query = f"{lead_name} {company_name} email address"
-                lead_results = self.search.invoke(lead_query)
+                lead_results = _safe_search(self.search, lead_query)
                 
                 lead_context = "\n".join([r.get('content', '')[:400] for r in lead_results])[:1200]
                 
@@ -122,7 +198,7 @@ class CompetitorAnalyzer:
         """
         try:
             search_query = f"{company_name} competitors {industry} comparison features"
-            search_results = self.search.invoke(search_query)
+            search_results = _safe_search(self.search, search_query)
             
             context = "\n".join([r.get('content', '')[:500] for r in search_results])[:1500]
             
