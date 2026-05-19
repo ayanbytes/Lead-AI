@@ -1,3 +1,8 @@
+import warnings
+warnings.filterwarnings("ignore", category=RuntimeWarning, message=".*duckduckgo_search.*")
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+warnings.filterwarnings("ignore", message=".*PydanticDeprecatedSince20.*")
+
 import razorpay
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware

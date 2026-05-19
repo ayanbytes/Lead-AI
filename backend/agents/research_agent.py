@@ -2,6 +2,9 @@ import os
 import time
 import json
 import re
+import warnings
+warnings.filterwarnings("ignore", category=RuntimeWarning, message=".*duckduckgo_search.*")
+
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from langchain_community.tools.tavily_search import TavilySearchResults
